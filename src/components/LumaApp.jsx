@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 // -----------------------------------------------
 // Supabase config - no SDK, plain fetch
 // -----------------------------------------------
-const SUPA_URL  = "https://ribyrsrdhskvdmlnpsxk.supabase.co";
-const SUPA_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYnlyc3JkaHNrdmRtbG5wc3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njc0NDcsImV4cCI6MjA4ODM0MzQ0N30.o1CPKQP1qrvonHJFm7UESuFmgTa3z-BJqePMSVn7ZkI";
+const SUPA_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ribyrsrdhskvdmlnpsxk.supabase.co";
+const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const EDGE_URL  = SUPA_URL + "/functions/v1";
 
 // Session store - persisted in localStorage
