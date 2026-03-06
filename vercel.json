@@ -1,0 +1,12 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@luma-supabase-url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@luma-supabase-anon-key",
+    "STRIPE_SECRET_KEY": "@luma-stripe-secret-key",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@luma-stripe-publishable-key"
+  }
+}
