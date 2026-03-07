@@ -1,3 +1,5 @@
+// DEPRECATED: Use get-bookings instead. This function is a duplicate.
+// TODO: Remove after verifying no clients depend on this endpoint.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 Deno.serve(async (req: Request) => {

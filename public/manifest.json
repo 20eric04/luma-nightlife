@@ -1,0 +1,21 @@
+{
+  "name": "Luma — Premium Nightlife Booking",
+  "short_name": "Luma",
+  "description": "Book VIP tables at Miami and New York's best venues.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait",
+  "categories": ["entertainment", "lifestyle", "social"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    { "name": "Explore Venues", "url": "/?tab=explore", "description": "Browse Miami and NYC venues" },
+    { "name": "My Bookings", "url": "/?tab=bookings", "description": "View your reservations" }
+  ]
+}
