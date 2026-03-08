@@ -121,7 +121,7 @@ const CSS = `
 .fu{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
 .fu1{animation-delay:.07s}.fu2{animation-delay:.14s}.fu3{animation-delay:.21s}
 .fi{animation:fadeIn .25s ease both}
-.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-height:0;flex:1}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-height:0;flex:1;padding-bottom:16px}
 .scroll::-webkit-scrollbar{display:none}
 .press{transition:transform .1s,opacity .1s;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .press:active{transform:scale(.97);opacity:.8}
@@ -1742,7 +1742,7 @@ function ProGuests({setTab,onMessage}){
     <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
       <div style={{padding:"4px 18px 12px"}}>
         <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"white"}}>Guest List</div>
-        <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)"}}>Noir Rooftop . Fri Mar 7</div>
+        <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)"}}>Noir Rooftop . {_fd(_tomorrow)}</div>
       </div>
       <div style={{padding:"0 18px 6px"}}>
         <ProCard style={{padding:"11px 15px",marginBottom:12}}>
@@ -3041,9 +3041,9 @@ function Onboard({onDone}){
       </div>
 
       {/* Content */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
-        justifyContent:"center",padding:"60px 32px 0",textAlign:"center"}} key={step}>
-        <div style={{fontSize:72,marginBottom:28,animation:"popIn .5s cubic-bezier(.34,1.56,.64,1) both"}}>{s.emoji}</div>
+      <div className="scroll" style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+        padding:"60px 32px 0",textAlign:"center",overflowY:"auto"}} key={step}>
+        <div style={{flexShrink:0,fontSize:72,marginBottom:28,animation:"popIn .5s cubic-bezier(.34,1.56,.64,1) both"}}>{s.emoji}</div>
         <div style={{fontFamily:"var(--fd)",fontSize:32,fontWeight:700,color:ink,
           lineHeight:1.22,marginBottom:14,whiteSpace:"pre-line",
           animation:"fadeUp .4s cubic-bezier(.16,1,.3,1) .1s both"}}>{s.title}</div>
