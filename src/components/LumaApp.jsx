@@ -260,6 +260,46 @@ function useUserBookings(refreshKey) {
   return { bookings: all, loading, addLocal };
 }
 
+// Promoter data hook — tries edge function, falls back to mock data
+function usePromoterData() {
+  const [data, setData] = useState({ guests: GUESTS, messages: MSGS, payouts: PAYOUTS, links: LINKS, loading: true });
+  useEffect(() => {
+    const sess = getSession();
+    if (!sess?.access_token) { setData(d => ({ ...d, loading: false })); return; }
+    edgeCall("get-promoter-data", {}).then(d => {
+      if (d && !d.error) {
+        setData({
+          guests: d.guests?.length ? d.guests.map(g => ({
+            id: g.id, name: g.name || g.guest_name || "Guest", table: g.table || g.notes || "Table",
+            party: g.party_size || g.guests || 2, status: g.status || "confirmed",
+            paid: Math.round((g.total || 0) / 100), arrived: g.status === "checked_in",
+            av: (g.name || g.guest_name || "G")[0]
+          })) : GUESTS,
+          messages: d.messages?.length ? d.messages : MSGS,
+          payouts: d.payouts?.length ? d.payouts : PAYOUTS,
+          links: d.links?.length ? d.links.map(l => ({
+            id: l.id, label: l.label || l.name || "Link",
+            url: l.url || "lumarsv.com/p/" + (l.slug || l.id),
+            clicks: l.clicks || l.click_count || 0, conv: l.conversions || l.booking_count || 0
+          })) : LINKS,
+          loading: false
+        });
+      } else {
+        setData(d => ({ ...d, loading: false }));
+      }
+    }).catch(() => setData(d => ({ ...d, loading: false })));
+  }, []);
+  return data;
+}
+
+
+// Dynamic date helpers for mock data
+const _fd=(d)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+const _tomorrow=new Date(); _tomorrow.setDate(_tomorrow.getDate()+1);
+const _lastWeek=new Date(); _lastWeek.setDate(_lastWeek.getDate()-7);
+const _twoWeeks=new Date(); _twoWeeks.setDate(_twoWeeks.getDate()-14);
+const _nextFri=(()=>{const d=new Date();d.setDate(d.getDate()+((5-d.getDay()+7)%7||7));return d;})();
+const _nextSat=(()=>{const d=new Date();d.setDate(d.getDate()+((6-d.getDay()+7)%7||7));return d;})();
 
 const GUESTS = [
   {id:1,name:"Sophia R.",table:"VIP Booth",party:4,status:"confirmed",paid:480,arrived:true,av:"S"},
@@ -279,19 +319,19 @@ const MSGS = [
 ];
 
 const PAYOUTS = [
-  {id:1,event:"Noir Rooftop . Mar 7",gross:1835,comm:275,status:"pending"},
-  {id:2,event:"Azure Terrace . Feb 22",gross:1200,comm:180,status:"paid"},
-  {id:3,event:"Velvet Underground . Feb 14",gross:2100,comm:315,status:"paid"},
+  {id:1,event:"Noir Rooftop . "+_fd(_tomorrow),gross:1835,comm:275,status:"pending"},
+  {id:2,event:"Azure Terrace . "+_fd(_lastWeek),gross:1200,comm:180,status:"paid"},
+  {id:3,event:"Velvet Underground . "+_fd(_twoWeeks),gross:2100,comm:315,status:"paid"},
 ];
 
 const LINKS = [
-  {id:1,label:"Noir Rooftop - Mar 7",url:"luma.vip/p/NOIR-MAR7",clicks:142,conv:8},
-  {id:2,label:"Azure - Mar 8",url:"luma.vip/p/AZURE-MAR8",clicks:88,conv:5},
-  {id:3,label:"Velvet - Mar 14",url:"luma.vip/p/VELVET-MAR14",clicks:34,conv:1},
+  {id:1,label:"Noir Rooftop - "+_fd(_nextFri),url:"lumarsv.com/p/NOIR-"+_nextFri.toISOString().slice(5,10),clicks:142,conv:8},
+  {id:2,label:"Azure - "+_fd(_nextSat),url:"lumarsv.com/p/AZURE-"+_nextSat.toISOString().slice(5,10),clicks:88,conv:5},
+  {id:3,label:"Velvet - "+_fd(_tomorrow),url:"lumarsv.com/p/VELVET-"+_tomorrow.toISOString().slice(5,10),clicks:34,conv:1},
 ];
 
 // ----------------------------------------------- Shared helpers --------------------------------------------
-const ALLOWED_IMG_HOSTS=["images.unsplash.com","picsum.photos","cdn.luma.vip","supabase.co","supabase.com"];
+const ALLOWED_IMG_HOSTS=["images.unsplash.com","picsum.photos","cdn.luma.vip","lumarsv.com","supabase.co","supabase.com"];
 function isSafeImgSrc(src){
   if(!src||typeof src!=="string") return false;
   try{ const u=new URL(src); return ALLOWED_IMG_HOSTS.some(h=>u.hostname===h||u.hostname.endsWith("."+h)); }
@@ -1622,12 +1662,16 @@ function ProCard({children,style={},onClick}){
   return <div onClick={onClick} className={onClick?"press":""} style={{background:P.bg,border:P.border,borderRadius:16,...style}}>{children}</div>;
 }
 
-function ProDash({setTab,userName="Promoter"}){
+function ProDash({setTab,userName="Promoter",proData}){
   const [showPaywall,setShowPaywall]=useState(false);
-  const earned=PAYOUTS.filter(p=>p.status==="paid").reduce((s,p)=>s+p.comm,0);
-  const pending=PAYOUTS.filter(p=>p.status==="pending").reduce((s,p)=>s+p.comm,0);
-  const confirmed=GUESTS.filter(g=>g.status==="confirmed").length;
-  const arrived=GUESTS.filter(g=>g.arrived).length;
+  const guests=proData?.guests||GUESTS;
+  const payouts=proData?.payouts||PAYOUTS;
+  const links=proData?.links||LINKS;
+  const earned=payouts.filter(p=>p.status==="paid").reduce((s,p)=>s+p.comm,0);
+  const pending=payouts.filter(p=>p.status==="pending").reduce((s,p)=>s+p.comm,0);
+  const confirmed=guests.filter(g=>g.status==="confirmed").length;
+  const arrived=guests.filter(g=>g.arrived).length;
+  const tonightDate=_fd(_tomorrow);
   if(showPaywall) return <ProPaywall onClose={()=>setShowPaywall(false)} onSelect={()=>setShowPaywall(false)}/>;
   return(
     <div className="scroll fi" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
@@ -1644,7 +1688,7 @@ function ProDash({setTab,userName="Promoter"}){
         <div className="press" onClick={()=>setTab("guests")} style={{background:"linear-gradient(135deg,rgba(201,168,76,.16),rgba(201,168,76,.05))",border:"1px solid rgba(201,168,76,.22)",borderRadius:18,padding:"14px 16px",marginBottom:13}}>
           <div style={{fontSize:9,color:"rgba(201,168,76,.65)",fontWeight:700,fontFamily:"var(--fb)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:5}}>Tonight's Event</div>
           <div style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"white",marginBottom:1}}>Noir Rooftop</div>
-          <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginBottom:11}}>Friday Mar 7 . Doors 10PM</div>
+          <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginBottom:11}}>{tonightDate} . Doors 10PM</div>
           <div style={{display:"flex",gap:18}}>
             {[[confirmed,"Confirmed","var(--gold)"],[arrived,"Arrived","white"],["$"+pending,"Pending","#fbbf24"]].map(([v,l,c])=>(
               <div key={l}><div style={{fontFamily:"var(--fd)",fontSize:21,fontWeight:700,color:c}}>{v}</div><div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)"}}>{l}</div></div>
@@ -1657,8 +1701,8 @@ function ProDash({setTab,userName="Promoter"}){
           {[
             ["$"+earned,"Total Earned","💰","payouts"],
             ["$"+pending,"Pending","⏳","payouts"],
-            [LINKS.reduce((s,l)=>s+l.clicks,0)+" clicks","Link Traffic","🔗","links"],
-            [LINKS.reduce((s,l)=>s+l.conv,0)+" booked","Conversions","✅","analytics"]
+            [links.reduce((s,l)=>s+l.clicks,0)+" clicks","Link Traffic","🔗","links"],
+            [links.reduce((s,l)=>s+l.conv,0)+" booked","Conversions","✅","analytics"]
           ].map(([v,l,ic,tab])=>(
             <ProCard key={l} onClick={()=>setTab(tab)} style={{padding:"12px 13px",cursor:"pointer",position:"relative",overflow:"hidden"}}>
               <div style={{position:"absolute",top:-12,right:-8,fontSize:36,opacity:.07}}>{ic}</div>
@@ -1756,7 +1800,7 @@ function ProLinks(){
   const createLink=()=>{
     if(!newLabel.trim())return;
     const slug=newLabel.trim().toUpperCase().replace(/[^A-Z0-9]/g,"-").slice(0,20);
-    const newLink={id:Date.now(),label:newLabel.trim(),url:"luma.vip/p/"+slug,clicks:0,conv:0};
+    const newLink={id:Date.now(),label:newLabel.trim(),url:"lumarsv.com/p/"+slug,clicks:0,conv:0};
     setLinks(l=>[newLink,...l]);
     setNewLabel("");setSelVenue(null);setShowNew(false);
   };
@@ -1770,11 +1814,11 @@ function ProLinks(){
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px 28px"}}>
         <div style={{background:"white",borderRadius:20,padding:18,marginBottom:18,boxShadow:"0 8px 40px rgba(0,0,0,.4)"}}>
-          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://luma.vip/p/${qr.url.split('/p/')[1]}&margin=0&color=0a0a0a`}
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://lumarsv.com/p/${qr.url.split('/p/')[1]}&margin=0&color=0a0a0a`}
             alt="QR Code" width={220} height={220} style={{display:"block",borderRadius:4}}/>
         </div>
         <div style={{fontSize:15,fontWeight:700,color:"white",fontFamily:"var(--fb)",marginBottom:4,textAlign:"center"}}>{qr.label}</div>
-        <div style={{fontSize:12,color:P.sub,fontFamily:"var(--fb)",marginBottom:6}}>luma.vip/p/{qr.url.split('/p/')[1]}</div>
+        <div style={{fontSize:12,color:P.sub,fontFamily:"var(--fb)",marginBottom:6}}>lumarsv.com/p/{qr.url.split('/p/')[1]}</div>
         <div style={{background:"var(--goldbg)",border:"1px solid rgba(201,168,76,.25)",borderRadius:10,
           padding:"5px 14px",fontSize:11,color:"var(--gold)",fontFamily:"var(--fb)",fontWeight:700}}>
           {qr.clicks} scans . {qr.conv} booked
@@ -2183,72 +2227,76 @@ function ProPricing(){
 }
 
 // ----------------------------------------------- Promoter data ---------------------------------------------
+const _exp7=_fd(new Date(Date.now()+7*864e5));
+const _exp14=_fd(new Date(Date.now()+14*864e5));
+const _exp21=_fd(new Date(Date.now()+21*864e5));
+const _exp30=_fd(new Date(Date.now()+30*864e5));
 const PROMOTERS = [
   // ----------------------------------------------- Miami -------------------------------------------------
   {id:1,name:'Jordan Voss',handle:'@jordanvoss',avatar:'J',city:'Miami . South Beach',region:'Miami',rating:4.9,reviews:214,bookings:1840,followers:'12.4k',bio:"Miami's top rooftop & pool promoter. VIP access guaranteed.",verified:true,
    specialties:['Rooftop','Pool Party','Bottle Service'],venues:['Noir Rooftop','Soleil Pool Club','Azure Terrace'],
-   deals:[{id:1,label:'10% off VIP Booths',code:'JORDAN10',expiry:'Mar 14'},{id:2,label:'Free entry + priority queue',code:'VJFREE',expiry:'Mar 7'}],
+   deals:[{id:1,label:'10% off VIP Booths',code:'JORDAN10',expiry:_exp14},{id:2,label:'Free entry + priority queue',code:'VJFREE',expiry:_exp7}],
    events:[{id:1,venue:'Noir Rooftop',date:'Fri Mar 7',spots:3,img:'https://picsum.photos/id/1039/400/264'},{id:2,venue:'Soleil Pool Club',date:'Sat Mar 8',spots:8,img:'https://picsum.photos/id/316/400/264'}],
    feedbacks:[{name:'Marco R.',stars:5,text:'Jordan got us the best booth - no wait, great service.'},{name:'Aisha T.',stars:5,text:'Booked through his link, seamless. Will use again.'}]},
   {id:2,name:'Mia Reyes',handle:'@miareyes',avatar:'M',city:'Miami . Wynwood',region:'Miami',rating:4.8,reviews:187,bookings:1320,followers:'8.9k',bio:'Wynwood nightlife curator. Underground, authentic, always lit.',verified:true,
    specialties:['Nightclub','DJ Nights','Afrobeats'],venues:['Velvet Underground','Obsidian Club'],
-   deals:[{id:1,label:'$20 off Bottle Tables',code:'MIA20',expiry:'Mar 14'}],
+   deals:[{id:1,label:'$20 off Bottle Tables',code:'MIA20',expiry:_exp14}],
    events:[{id:1,venue:'Velvet Underground',date:'Fri Mar 14',spots:12,img:'https://picsum.photos/id/26/400/264'}],
    feedbacks:[{name:'Priya S.',stars:5,text:'Mia knows every bouncer in Wynwood. Walked right in.'},{name:'Tyler W.',stars:4,text:'Great vibe curation, smaller crew which is nice.'}]},
   {id:3,name:'Dante Cruz',handle:'@dantecruz',avatar:'D',city:'Miami . Brickell',region:'Miami',rating:4.7,reviews:98,bookings:720,followers:'5.2k',bio:"Brickell's go-to for upscale lounges and cocktail experiences.",verified:false,
    specialties:['Lounge','Cocktails','Business'],venues:['Azure Terrace'],
-   deals:[{id:1,label:'Complimentary welcome cocktail',code:'DANTE1ST',expiry:'Mar 31'}],
+   deals:[{id:1,label:'Complimentary welcome cocktail',code:'DANTE1ST',expiry:_exp30}],
    events:[{id:1,venue:'Azure Terrace',date:'Sat Mar 8',spots:4,img:'https://picsum.photos/id/371/400/264'}],
    feedbacks:[{name:'Sofia L.',stars:5,text:'Perfect for a corporate night out. Very professional.'},{name:'Raj M.',stars:4,text:'Azure Terrace through Dante was an amazing experience.'}]},
   {id:4,name:'Zara Hunt',handle:'@zarahunt',avatar:'Z',city:'Miami . South Beach',region:'Miami',rating:4.9,reviews:305,bookings:2100,followers:'22k',bio:'Top 1% promoter on Luma. Pool parties, beach clubs, A-list energy.',verified:true,
    specialties:['Pool Party','Dayclub','Celebrity Events'],venues:['Soleil Pool Club','Noir Rooftop'],
-   deals:[{id:1,label:'Cabana upgrade for 4+',code:'ZARAUP',expiry:'Mar 8'},{id:2,label:'Early bird access - save $40',code:'ZARAEARLY',expiry:'Mar 8'}],
+   deals:[{id:1,label:'Cabana upgrade for 4+',code:'ZARAUP',expiry:_exp7},{id:2,label:'Early bird access - save $40',code:'ZARAEARLY',expiry:_exp7}],
    events:[{id:1,venue:'Soleil Pool Club',date:'Sat Mar 8',spots:2,img:'https://picsum.photos/id/429/400/264'}],
    feedbacks:[{name:'Bianca R.',stars:5,text:"Zara's connections are insane. Best pool day of my life."},{name:'Chris D.',stars:5,text:"Got upgraded to a cabana at Soleil - didn't even ask for it."}]},
   {id:5,name:'Rico Flames',handle:'@ricoflames',avatar:'R',city:'Miami . Little Havana',region:'Miami',rating:4.8,reviews:143,bookings:980,followers:'7.1k',bio:'Latin nights specialist. Salsa, reggaeton, fire lineups every weekend.',verified:true,
    specialties:['Latin Nights','Reggaeton','DJ Events'],venues:['Obsidian Club','Velvet Underground'],
-   deals:[{id:1,label:'Ladies free before midnight',code:'RICOLADIES',expiry:'Mar 14'},{id:2,label:'Group of 6+ - 1 free bottle',code:'RICO6UP',expiry:'Mar 21'}],
+   deals:[{id:1,label:'Ladies free before midnight',code:'RICOLADIES',expiry:_exp14},{id:2,label:'Group of 6+ - 1 free bottle',code:'RICO6UP',expiry:_exp21}],
    events:[{id:1,venue:'Obsidian Club',date:'Sat Mar 15',spots:20,img:'https://picsum.photos/id/289/400/264'}],
    feedbacks:[{name:'Isabella M.',stars:5,text:'Rico throws the best Latin nights in Miami, no debate.'},{name:'Carlos V.',stars:5,text:'Got a free bottle for our group. Insane deal.'}]},
   {id:6,name:'Serena Vale',handle:'@serenavale',avatar:'S',city:'Miami . Coconut Grove',region:'Miami',rating:4.6,reviews:89,bookings:540,followers:'4.4k',bio:'Curated luxury experiences. Intimate, high-end, exclusive.',verified:false,
    specialties:['Luxury','Lounge','Private Events'],venues:['Azure Terrace','Noir Rooftop'],
-   deals:[{id:1,label:'15% off for first-time bookings',code:'SERENANEW',expiry:'Mar 31'}],
+   deals:[{id:1,label:'15% off for first-time bookings',code:'SERENANEW',expiry:_exp30}],
    events:[{id:1,venue:'Azure Terrace',date:'Fri Mar 14',spots:6,img:'https://picsum.photos/id/342/400/264'}],
    feedbacks:[{name:'Amanda F.',stars:5,text:"Serena's events feel like private members clubs. Love it."},{name:'James K.',stars:4,text:'Very attentive, remembered our preferences from last time.'}]},
   {id:7,name:'Marcus Gold',handle:'@marcusgold',avatar:'G',city:'Miami . Downtown',region:'Miami',rating:4.7,reviews:201,bookings:1450,followers:'9.8k',bio:'Downtown Miami most connected promoter. Hip-hop, EDM, all genres.',verified:true,
    specialties:['Hip-Hop','EDM','Bottle Service'],venues:['Obsidian Club','Velvet Underground','Noir Rooftop'],
-   deals:[{id:1,label:'$50 off tables over $500 min',code:'MGOLD50',expiry:'Mar 21'}],
+   deals:[{id:1,label:'$50 off tables over $500 min',code:'MGOLD50',expiry:_exp21}],
    events:[{id:1,venue:'Noir Rooftop',date:'Fri Mar 21',spots:7,img:'https://picsum.photos/id/43/400/264'}],
    feedbacks:[{name:'Devon R.',stars:5,text:'Marcus delivered exactly what he promised. No BS.'},{name:'Tasha M.',stars:4,text:'Good connections, tables were ready when we arrived.'}]},
   // ----------------------------------------------- New York ----------------------------------------------
   {id:8,name:'Kai Montrose',handle:'@kaimontrose',avatar:'K',city:'New York . Meatpacking',region:'New York',rating:4.9,reviews:388,bookings:2900,followers:'31k',bio:'NYC #1 Meatpacking promoter. 10 years, zero bad nights.',verified:true,
    specialties:['Nightclub','VIP Tables','Celebrity Events'],venues:['Marquee NY','1 OAK','Catch Rooftop'],
-   deals:[{id:1,label:'Skip the line + free first round',code:'KAINYC',expiry:'Mar 14'},{id:2,label:'$100 off VIP tables Fri/Sat',code:'KAI100',expiry:'Mar 21'}],
+   deals:[{id:1,label:'Skip the line + free first round',code:'KAINYC',expiry:_exp14},{id:2,label:'$100 off VIP tables Fri/Sat',code:'KAI100',expiry:_exp21}],
    events:[{id:1,venue:'Marquee NY',date:'Sat Mar 8',spots:4,img:'https://picsum.photos/id/444/400/264'},{id:2,venue:'1 OAK',date:'Fri Mar 14',spots:8,img:'https://picsum.photos/id/392/400/264'}],
    feedbacks:[{name:'Nicole T.',stars:5,text:'Kai is the real deal in NYC. Zero wait, amazing table.'},{name:'Brandon S.',stars:5,text:'Been using Kai for 3 years. Never disappointed once.'}]},
   {id:9,name:'Anya Volkov',handle:'@anyavolkov',avatar:'A',city:'New York . Lower East Side',region:'New York',rating:4.8,reviews:267,bookings:1760,followers:'14.2k',bio:'LES underground queen. Techno, house, the real NYC nightlife.',verified:true,
    specialties:['Techno','House','Underground'],venues:['Good Room','Elsewhere','Output'],
-   deals:[{id:1,label:'Guest list + 1 - Fri/Sat',code:'ANYAGL',expiry:'Mar 14'}],
+   deals:[{id:1,label:'Guest list + 1 - Fri/Sat',code:'ANYAGL',expiry:_exp14}],
    events:[{id:1,venue:'Good Room',date:'Sat Mar 8',spots:15,img:'https://picsum.photos/id/1039/400/264'}],
    feedbacks:[{name:'Felix H.',stars:5,text:'Anya literally knows every DJ in the city. Magic nights.'},{name:'Sam P.',stars:5,text:'She got us into a sold-out show.'}]},
   {id:10,name:'Tyler Banks',handle:'@tylerbanks',avatar:'T',city:'New York . Midtown',region:'New York',rating:4.7,reviews:198,bookings:1340,followers:'10.5k',bio:'Midtown & rooftop specialist. Corporate events, bachelor parties, groups.',verified:true,
    specialties:['Rooftop','Corporate','Groups'],venues:['Skylark','230 Fifth','The Press Lounge'],
-   deals:[{id:1,label:'Group of 8+ - priority seating',code:'TBANKS8',expiry:'Mar 31'},{id:2,label:'Complimentary welcome bottle',code:'TBWELCOME',expiry:'Mar 14'}],
+   deals:[{id:1,label:'Group of 8+ - priority seating',code:'TBANKS8',expiry:_exp30},{id:2,label:'Complimentary welcome bottle',code:'TBWELCOME',expiry:_exp14}],
    events:[{id:1,venue:'Skylark',date:'Fri Mar 7',spots:10,img:'https://picsum.photos/id/316/400/264'}],
    feedbacks:[{name:'Rachel K.',stars:5,text:'Tyler organized our bachelorette perfectly. 10/10.'},{name:'David L.',stars:4,text:'Great rooftop access, handled everything professionally.'}]},
   {id:11,name:'Priya Sharma',handle:'@priyasharma',avatar:'P',city:'New York . Brooklyn',region:'New York',rating:4.8,reviews:156,bookings:890,followers:'6.8k',bio:'Brooklyn-based. Afrobeats, Amapiano, Dancehall. Authentic culture first.',verified:false,
    specialties:['Afrobeats','Amapiano','Dancehall'],venues:['Avant Gardner','Nowadays','Schimanski'],
-   deals:[{id:1,label:'Free entry before 11PM',code:'PRIYAEARLY',expiry:'Mar 14'}],
+   deals:[{id:1,label:'Free entry before 11PM',code:'PRIYAEARLY',expiry:_exp14}],
    events:[{id:1,venue:'Avant Gardner',date:'Sat Mar 15',spots:18,img:'https://picsum.photos/id/26/400/264'}],
    feedbacks:[{name:'Zoe A.',stars:5,text:'Priya brought the whole Brooklyn scene together. Incredible.'},{name:'Mark B.',stars:4,text:'Loved the music curation, very authentic vibe.'}]},
   {id:12,name:'Dex Harlow',handle:'@dexharlow',avatar:'H',city:'New York . Chelsea',region:'New York',rating:4.9,reviews:421,bookings:3200,followers:'28k',bio:'15 years in NYC nightlife. Connected everywhere. Results guaranteed.',verified:true,
    specialties:['Hip-Hop','R&B','Celebrity Nights'],venues:['1 OAK','PhD Rooftop','Tao Downtown'],
-   deals:[{id:1,label:'VIP wristband + no cover',code:'DEXVIP',expiry:'Mar 7'},{id:2,label:'Table for 4 - $200 off minimum',code:'DEX200',expiry:'Mar 14'}],
+   deals:[{id:1,label:'VIP wristband + no cover',code:'DEXVIP',expiry:_exp7},{id:2,label:'Table for 4 - $200 off minimum',code:'DEX200',expiry:_exp14}],
    events:[{id:1,venue:'1 OAK',date:'Fri Mar 7',spots:3,img:'https://picsum.photos/id/371/400/264'},{id:2,venue:'Tao Downtown',date:'Sat Mar 8',spots:5,img:'https://picsum.photos/id/429/400/264'}],
    feedbacks:[{name:'Jasmine W.',stars:5,text:'Dex is a legend. Been using him for 5 years straight.'},{name:'Chris M.',stars:5,text:'Got into a sold-out R&B night. VIP treatment start to finish.'}]},
   {id:13,name:'Luna Park',handle:'@lunapark',avatar:'L',city:'New York . SoHo',region:'New York',rating:4.6,reviews:112,bookings:670,followers:'5.9k',bio:'SoHo art crowd, fashion week events, editorial nightlife curation.',verified:false,
    specialties:['Fashion','Art Crowd','Editorial Events'],venues:['Electric Room','Le Bain','Boom Boom Room'],
-   deals:[{id:1,label:'Fashion week special - 20% off tables',code:'LUNAFW',expiry:'Mar 14'}],
+   deals:[{id:1,label:'Fashion week special - 20% off tables',code:'LUNAFW',expiry:_exp14}],
    events:[{id:1,venue:'Le Bain',date:'Sat Mar 8',spots:6,img:'https://picsum.photos/id/289/400/264'}],
    feedbacks:[{name:'Emma V.',stars:5,text:"Luna's events are the ones fashion week editors actually go to."},{name:'Tom R.',stars:4,text:'Very curated, exclusive feel. Worth every penny.'}]},
 ];
@@ -2425,13 +2473,13 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
   };
 
   const handleShare=async()=>{
-    const ok=await copyToClipboard(`luma.vip/p/${promoter.handle}`);
+    const ok=await copyToClipboard(`lumarsv.com/p/${promoter.handle}`);
     if(ok){setCopied(true);setTimeout(()=>setCopied(false),2000);}
     else{setCopyErr(true);setTimeout(()=>setCopyErr(false),2500);}
   };
 
   // ----------------------------------------------- Social Export Modal ----------------------------------
-  const profileUrl=`luma.vip/p/${promoter.handle}`;
+  const profileUrl=`lumarsv.com/p/${promoter.handle}`;
   const caption=`🔥 Book with me on Luma for exclusive deals & VIP access.\n\n✦ ${promoter.specialties.join(' . ')}\n📍 ${promoter.city}\n⭐ ${promoter.rating} rating . ${promoter.bookings.toLocaleString()} bookings\n\n🔗 ${profileUrl}`;
   const igCaption=`🔥 VIP access, exclusive deals, no wait.\nBook through my Luma profile 🔗\n${profileUrl}\n.\n.\n#nightlife #${promoter.region==="Miami"?"miami":"nyc"}nightlife #viptable #promoter #luma`;
 
@@ -2529,7 +2577,7 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
           ].map(s=>(
             <div key={s.label} onClick={async()=>{
               const plat=PLATFORMS.find(p=>p.label.toLowerCase().includes(s.label.toLowerCase().split(" ")[0]));
-              const txt=plat?plat.text:"Book VIP with me -> luma.vip/"+promoter.handle;
+              const txt=plat?plat.text:"Book VIP with me -> lumarsv.com/"+promoter.handle;
               const ok=await copyToClipboard(txt);
               if(ok){setPlatCopied(s.label);setTimeout(()=>setPlatCopied(null),2000);}
               else{setPlatErr(s.label);setTimeout(()=>setPlatErr(null),2500);}
@@ -2550,9 +2598,9 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
         <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.3)",letterSpacing:".1em",
           textTransform:"uppercase",fontFamily:"var(--fb)",marginBottom:10}}>Caption Presets</div>
         {[
-          {lbl:"Short",txt:"Book through my Luma link -> luma.vip/"+promoter.handle+" 🔥"},
-          {lbl:"Story",txt:"VIP access, no wait. Book through my profile 🔗 luma.vip/"+promoter.handle},
-          {lbl:"Bio",txt:"📍 "+promoter.city.split(".")[0].trim()+" | Book VIP tables -> luma.vip/"+promoter.handle},
+          {lbl:"Short",txt:"Book through my Luma link -> lumarsv.com/"+promoter.handle+" 🔥"},
+          {lbl:"Story",txt:"VIP access, no wait. Book through my profile 🔗 lumarsv.com/"+promoter.handle},
+          {lbl:"Bio",txt:"📍 "+promoter.city.split(".")[0].trim()+" | Book VIP tables -> lumarsv.com/"+promoter.handle},
         ].map(c=>(
           <div key={c.lbl} className="press" onClick={async()=>{
             const ok=await copyToClipboard(c.txt);
@@ -3214,7 +3262,7 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail,userName,onCityChange
           ["Can I cancel a booking?","Free cancellation up to 48 hours before your event date. After that, cancellation policies vary by venue."],
           ["How do promoter invite links work?","Promoters share their personal link. When you book through it, they get credit and you may get exclusive perks like priority entry."],
           ["I'm a promoter — how do I join?","Switch to promoter mode in your profile settings. You'll set up your profile, get your invite links, and start earning 15% commission on bookings."],
-          ["How do I contact support?","Email us at support@luma.vip or DM @luma.rsv on Instagram. We typically respond within a few hours."],
+          ["How do I contact support?","Email us at support@lumarsv.com or DM @luma.rsv on Instagram. We typically respond within a few hours."],
         ].map(([q,a],i)=>(
           <div key={i} style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:14,
             padding:"14px 16px",marginBottom:8}}>
@@ -3224,7 +3272,7 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail,userName,onCityChange
         ))}
         <div style={{marginTop:14,textAlign:"center"}}>
           <div style={{fontSize:11,color:"var(--dim)",fontFamily:"var(--fb)",marginBottom:6}}>Need more help?</div>
-          <div onClick={async()=>{await copyToClipboard("support@luma.vip");}}
+          <div onClick={async()=>{await copyToClipboard("support@lumarsv.com");}}
             className="press" style={{display:"inline-block",padding:"8px 20px",background:"var(--ink)",
               color:"white",borderRadius:12,fontSize:12,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>
             Copy support email
@@ -3440,13 +3488,24 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail,userName,onCityChange
           {[
             ["Become a promoter →","Switch to promoter dashboard",()=>onSwitchMode("promoter"),false],
             ["Invite a friend","Share Luma with friends",async()=>{
-              const shareData={title:"Luma — VIP Table Booking",text:"Book VIP tables in Miami & NYC in 60 seconds 🔥",url:"https://luma.vip"};
+              const shareData={title:"Luma — VIP Table Booking",text:"Book VIP tables in Miami & NYC in 60 seconds 🔥",url:"https://lumarsv.com"};
               if(navigator.share){try{await navigator.share(shareData);}catch(e){}}
-              else{const ok=await copyToClipboard("Book VIP tables with Luma 🔥 https://luma.vip");if(ok)alert("Link copied!");}
+              else{const ok=await copyToClipboard("Book VIP tables with Luma 🔥 https://lumarsv.com");if(ok)alert("Link copied!");}
             },false],
             ["Help & support","FAQs and contact",()=>{
               setHelpOpen&&setHelpOpen(true);
             },false],
+            ["Delete my account","Permanently delete all data",()=>{
+              if(confirm("Are you sure? This permanently deletes your account, bookings, and all data. This cannot be undone.")){
+                const sess=getSession();
+                if(sess?.access_token){
+                  fetch(SUPA_URL+"/rest/v1/rpc/delete_user_account",{
+                    method:"POST",headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,"Content-Type":"application/json"},
+                    body:JSON.stringify({target_user_id:sess.user.id})
+                  }).then(()=>{onSignOut&&onSignOut();}).catch(()=>alert("Something went wrong. Try again."));
+                }
+              }
+            },true],
             ["Sign out","Signed in as "+(userEmail||"guest"),()=>onSignOut&&onSignOut(),true],
           ].map(([label,sub,fn,danger],i,arr)=>(
             <div key={label} onClick={fn} className="press"
@@ -3605,6 +3664,7 @@ export default function App(){
   };
   const pro=mode==="promoter";
   const userName=session?.user?.user_metadata?.name||session?.user?.email?.split("@")[0]||"Guest";
+  const proData=usePromoterData();
 
   const VALID_DESTS=new Set(["home","explore","map","promoters","bookings","venue","promoter","invite","profile","back"]);
   const go=(dest,data)=>{
@@ -3659,14 +3719,14 @@ export default function App(){
       if(gt==="bookings") return <Bookings go={go} refreshKey={bookingKey} localBookings={localBookings}/>;
       return <Home go={go} userName={userName}/>;
     }
-    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName}/>;
+    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData}/>;
     if(pt==="guests")    return <ProGuests setTab={setPt} onMessage={(guestName)=>{setMsgTarget(guestName);setPt("messages");}}/>;
     if(pt==="links")     return <ProLinks/>;
     if(pt==="analytics") return <ProAnalytics/>;
     if(pt==="payouts")   return <ProPayouts/>;
     if(pt==="messages")  return <ProMessages initialOpen={msgTarget} onOpened={()=>setMsgTarget(null)}/>;
     if(pt==="pricing")   return <ProPricing/>;
-    return <ProDash setTab={setPt} userName={userName}/>;
+    return <ProDash setTab={setPt} userName={userName} proData={proData}/>;
   };
 
   function GuestTabs(){
@@ -3794,7 +3854,7 @@ export default function App(){
         </div>
 
         <div style={{position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",fontSize:10,color:pro?"rgba(255,255,255,.18)":"rgba(0,0,0,.22)",letterSpacing:".07em",whiteSpace:"nowrap",fontFamily:"var(--fb)"}}>
-          luma.vip - {pro?"promoter portal":"your personal concierge"}
+          lumarsv.com - {pro?"promoter portal":"your personal concierge"}
         </div>
       </div>
     </>
