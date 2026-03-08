@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from "react";
 // -----------------------------------------------
 // Supabase config - no SDK, plain fetch
 // -----------------------------------------------
-const SUPA_URL  = "https://ribyrsrdhskvdmlnpsxk.supabase.co";
-const SUPA_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYnlyc3JkaHNrdmRtbG5wc3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njc0NDcsImV4cCI6MjA4ODM0MzQ0N30.o1CPKQP1qrvonHJFm7UESuFmgTa3z-BJqePMSVn7ZkI";
+const SUPA_URL  = (typeof process!=="undefined"&&process.env?.NEXT_PUBLIC_SUPABASE_URL) || "https://ribyrsrdhskvdmlnpsxk.supabase.co";
+const SUPA_ANON = (typeof process!=="undefined"&&process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYnlyc3JkaHNrdmRtbG5wc3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njc0NDcsImV4cCI6MjA4ODM0MzQ0N30.o1CPKQP1qrvonHJFm7UESuFmgTa3z-BJqePMSVn7ZkI";
 const EDGE_URL  = SUPA_URL + "/functions/v1";
 
 // Session store - in-memory (artifact-safe)
@@ -48,6 +48,34 @@ async function supaSignOut() {
     }).catch(() => {});
   }
   _setSession(null);
+}
+
+// Token refresh — checks every 60s, refreshes if token expires within 5 min
+async function refreshToken() {
+  const s = getSession();
+  if (!s?.refresh_token || !s?.expires_at) return;
+  const expiresAt = s.expires_at * 1000; // convert to ms
+  const fiveMin = 5 * 60 * 1000;
+  if (Date.now() < expiresAt - fiveMin) return; // still fresh
+  try {
+    const r = await fetch(SUPA_URL + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: { "apikey": SUPA_ANON, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: s.refresh_token }),
+    });
+    const d = await r.json();
+    if (d.access_token) _setSession(d);
+  } catch (e) {}
+}
+// Auto-refresh interval (started in App component)
+let _refreshInterval = null;
+function startTokenRefresh() {
+  if (_refreshInterval) return;
+  _refreshInterval = setInterval(refreshToken, 60000);
+  refreshToken(); // check immediately
+}
+function stopTokenRefresh() {
+  if (_refreshInterval) { clearInterval(_refreshInterval); _refreshInterval = null; }
 }
 
 // Call an Edge Function with auth
@@ -3551,6 +3579,8 @@ export default function App(){
   useEffect(()=>{
     // Fix page title
     if(typeof document!=="undefined") document.title="Luma — VIP Table Booking";
+    // Start session auto-refresh
+    startTokenRefresh();
     const s=getSession();
     if(s?.access_token){
       fetch(SUPA_URL+"/rest/v1/profiles?id=eq."+s.user.id+"&select=city",{
@@ -3598,6 +3628,7 @@ export default function App(){
   };
   const updateSession = (s) => { _setSession(s); _setSessionState(s); };
   const handleSignOut = async () => {
+    stopTokenRefresh();
     await supaSignOut();
     _setSessionState(null);
     setGuestMode(false);
