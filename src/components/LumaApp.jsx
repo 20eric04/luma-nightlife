@@ -194,8 +194,9 @@ function useVenues(metro) {
   return { venues, loading };
 }
 
-function useUserBookings() {
+function useUserBookings(refreshKey) {
   const [bookings, setBookings] = useState([]);
+  const [localBookings, setLocalBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     const sess = getSession();
@@ -216,7 +217,7 @@ function useUserBookings() {
             img: b.venues?.img_url || "",
             type: b.venues?.type || "Rooftop",
             date: b.event_date ? new Date(b.event_date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}) : "",
-            table: "Reserved Table",
+            table: b.notes || "Reserved Table",
             code: b.confirmation_code || "------",
           }));
           setBookings(normalized);
@@ -224,8 +225,11 @@ function useUserBookings() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
-  return { bookings, loading };
+  }, [refreshKey]);
+
+  const addLocal = (b) => setLocalBookings(prev => [b, ...prev]);
+  const all = [...localBookings, ...bookings];
+  return { bookings: all, loading, addLocal };
 }
 
 
@@ -1083,9 +1087,10 @@ function MapScreen({go,city="Miami"}){
   );
 }
 
-function Bookings({go}){
+function Bookings({go,refreshKey,localBookings=[]}){
   const [tab,setTab]=useState("upcoming");
-  const {bookings:bk,loading}=useUserBookings();
+  const {bookings:dbBk,loading}=useUserBookings(refreshKey);
+  const bk=[...localBookings,...dbBk];
   const list=tab==="upcoming"
     ?bk.filter(b=>b.status==="confirmed"||b.status==="pending")
     :bk.filter(b=>b.status==="cancelled"||b.status==="checked_in");
@@ -1131,7 +1136,7 @@ function Bookings({go}){
   );
 }
 
-function VenueDetail({venue,go}){
+function VenueDetail({venue,go,onBooked}){
   const [step,    setStep]    = useState("detail");
   const [selT,    setSelT]    = useState(null);
   // Generate real dates starting from tomorrow
@@ -1208,9 +1213,23 @@ function VenueDetail({venue,go}){
   const submitBooking = async () => {
     if (!selT || submitting) return;
     setSubmitting(true); setSubmitErr("");
+    const bookingRecord = (code, tot) => ({
+      id: "bk_"+Date.now(),
+      venue: venue.name,
+      img: venue.img,
+      type: venue.type,
+      date: date,
+      table: selT.name,
+      code: code,
+      status: "confirmed",
+      total: tot,
+    });
     if (!getSession()) {
-      setBooking({confirmation_code:"LM-DEMO", total, discount_pct:0, demo:true});
-      setStep("confirm"); setSubmitting(false); return;
+      const bk = {confirmation_code:"LM-DEMO", total, discount_pct:0, demo:true};
+      setBooking(bk);
+      setStep("confirm");
+      if(onBooked) onBooked(bookingRecord("LM-DEMO", total));
+      setSubmitting(false); return;
     }
     try {
       // Only send intent — server recalculates price independently
@@ -1230,6 +1249,7 @@ function VenueDetail({venue,go}){
         };
         setBooking(bData);
         setStep("confirm");
+        if(onBooked) onBooked(bookingRecord(d.confirmation_code || "LM-"+Date.now().toString(36).toUpperCase().slice(-6), bData.total));
         // Fire confirmation email (non-blocking)
         edgeCall("send-confirmation", {
           booking_id:        d.booking_id,
@@ -3547,6 +3567,12 @@ export default function App(){
   const [inviteData,setInviteData]=useState(null); // {promoter, event}
   const [stack,setStack]=useState([]);
   const [msgTarget,setMsgTarget]=useState(null);
+  const [bookingKey,setBookingKey]=useState(0);
+  const [localBookings,setLocalBookings]=useState([]);
+  const onBooked=(booking)=>{
+    setLocalBookings(prev=>[booking,...prev]);
+    setBookingKey(k=>k+1);
+  };
   const pro=mode==="promoter";
   const userName=session?.user?.user_metadata?.name||session?.user?.email?.split("@")[0]||"Guest";
 
@@ -3594,12 +3620,12 @@ export default function App(){
     if(!pro){
       if(inviteData) return <InviteLanding promoter={inviteData.promoter} event={inviteData.event} go={go} goBack={()=>go("back")} goPromoter={p=>go("promoter",p)}/>;
       if(selPromoter) return <PromoterProfile promoter={selPromoter} goBack={()=>go("back")} goVenue={v=>go("venue",v)} goBookPromoter={(p,ev)=>go("invite",{promoter:p,event:ev})}/>;
-      if(venue) return <VenueDetail venue={venue} go={go}/>;
+      if(venue) return <VenueDetail venue={venue} go={go} onBooked={onBooked}/>;
       if(gt==="home") return <Home go={go} city={city} userName={userName}/>;
       if(gt==="explore") return <Explore go={go} city={city}/>;
       if(gt==="map") return <MapScreen go={go} city={city}/>;
       if(gt==="promoters") return <PromotersDir goPromoter={p=>go("promoter",p)}/>;
-      if(gt==="bookings") return <Bookings go={go}/>;
+      if(gt==="bookings") return <Bookings go={go} refreshKey={bookingKey} localBookings={localBookings}/>;
       return <Home go={go} userName={userName}/>;
     }
     if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName}/>;
