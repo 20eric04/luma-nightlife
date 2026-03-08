@@ -148,3 +148,4 @@ Open [http://localhost:3000](http://localhost:3000)
 ---
 
 Built by [Eric](https://twitter.com/yourhandle) · Act 60 · Puerto Rico 🇵🇷
+<!-- deployed -->
