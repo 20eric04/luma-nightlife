@@ -5,7 +5,7 @@
 // but this structure makes it easy to iterate on the UI rapidly.
 import dynamic from 'next/dynamic';
 
-const LumaApp = dynamic(() => import('@/components/LumaApp'), { ssr: false });
+const LumaApp = dynamic(() => import('../../components/LumaApp'), { ssr: false });
 
 export default function Page() {
   return <LumaApp />;
