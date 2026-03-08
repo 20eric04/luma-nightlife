@@ -3,22 +3,23 @@ import { useState, useEffect, useRef } from "react";
 // -----------------------------------------------
 // Supabase config - no SDK, plain fetch
 // -----------------------------------------------
-const SUPA_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ribyrsrdhskvdmlnpsxk.supabase.co";
-const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const SUPA_URL  = "https://ribyrsrdhskvdmlnpsxk.supabase.co";
+const SUPA_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYnlyc3JkaHNrdmRtbG5wc3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njc0NDcsImV4cCI6MjA4ODM0MzQ0N30.SnFb0MiMYGPR7vBJqePMSVn7ZkI";
 const EDGE_URL  = SUPA_URL + "/functions/v1";
 
-// Session store - persisted in localStorage
+// Session store - in-memory (artifact-safe)
 let _session = null;
+const _memStore = {};
 function getSession() { return _session; }
 function _setSession(s) {
   _session = s;
   try {
-    if (s) localStorage.setItem("luma_sess", JSON.stringify(s));
-    else   localStorage.removeItem("luma_sess");
+    if (s) _memStore["luma_sess"] = JSON.stringify(s);
+    else   delete _memStore["luma_sess"];
   } catch(e) {}
 }
 // Restore on load
-try { const r = localStorage.getItem("luma_sess"); if (r) _session = JSON.parse(r); } catch(_e) {}
+try { const r = _memStore["luma_sess"]; if (r) _session = JSON.parse(r); } catch(_e) {}
 
 // Auth helpers
 async function supaSignUp(email, password, name) {
@@ -79,6 +80,8 @@ const CSS = `
 @keyframes popIn{0%{transform:scale(.92) translateY(18px);opacity:0}65%{transform:scale(1.02) translateY(-2px)}100%{transform:scale(1) translateY(0);opacity:1}}
 @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeScreen{from{opacity:0}to{opacity:1}}
+.fade-screen{animation:fadeScreen .7s cubic-bezier(.16,1,.3,1) both}
 @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideRight{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:translateX(0)}}
@@ -95,7 +98,7 @@ const CSS = `
 .press{transition:transform .1s,opacity .1s;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .press:active{transform:scale(.97);opacity:.8}
 .skel{background:linear-gradient(90deg,#e8e6e1 25%,#f0ede8 50%,#e8e6e1 75%);background-size:400px 100%;animation:shimmer 1.4s infinite linear}
-.tabbar{display:flex;border-top:1px solid var(--line);padding:9px 0 12px;flex-shrink:0}
+.tabbar{display:flex;border-top:1px solid var(--line);padding:9px 0 16px;flex-shrink:0}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:3px 0}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}50%{box-shadow:0 0 0 8px rgba(59,130,246,.0)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -141,6 +144,17 @@ const VENUES = [
    img:"https://picsum.photos/id/249/700/462",
    about:"Brooklyn's best underground club. Pure music, no attitude."},
 ];
+
+// Track promoter invite link clicks (public, no auth needed)
+async function trackLinkClick(linkId, promoterId) {
+  try {
+    fetch(SUPA_URL + "/rest/v1/link_clicks", {
+      method: "POST",
+      headers: { "apikey": SUPA_ANON, "Content-Type": "application/json", "Prefer": "return=minimal" },
+      body: JSON.stringify({ link_id: linkId, promoter_id: promoterId, clicked_at: new Date().toISOString() })
+    }).catch(() => {});
+  } catch (e) {}
+}
 
 // ── Live data hooks ────────────────────────────────────────────────────────
 function useVenues(metro) {
@@ -317,25 +331,29 @@ function SB({dark}){
 }
 
 // ----------------------------------------------- Guest screens ---------------------------------------------
-function Home({go,city="Miami"}){
+function Home({go,city="Miami",userName="Guest"}){
   const metro=city==="New York"?"New York":"Miami";
-  const hot=VENUES.filter(v=>v.hot&&v.metro===metro);
+  const {venues:allVenues}=useVenues(metro);
+  const hot=allVenues.filter(v=>v.hot);
+  const display=allVenues.length?allVenues:VENUES.filter(v=>v.metro===metro);
+  const hotStrip=hot.length?hot:display.slice(0,3);
+  const hero=hotStrip[0]||display[0]||VENUES[0];
   return(
     <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--bg)"}}>
       {/* Hero */}
       <div style={{position:"relative",height:250}}>
-        <Img src={hot[0].img} style={{position:"absolute",inset:0}} alt={hot[0].name} type={hot[0].type} name={hot[0].name}/>
+        <Img src={hero.img} style={{position:"absolute",inset:0}} alt={hero.name} type={hero.type} name={hero.name}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.8),transparent 55%)"}}/>
         <div style={{position:"absolute",top:8,left:20,right:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {city==="New York"?"New York, NY":"Miami, FL"}</div><div style={{fontFamily:"var(--fd)",fontSize:19,fontStyle:"italic",color:"white"}}>{getGreeting()}, Eric</div></div>
-          <div onClick={()=>go("profile")} className="press" style={{width:35,height:35,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fb)",cursor:"pointer"}}>E</div>
+          <div><div style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {city==="New York"?"New York, NY":"Miami, FL"}</div><div style={{fontFamily:"var(--fd)",fontSize:19,fontStyle:"italic",color:"white"}}>{getGreeting()}, {userName}</div></div>
+          <div onClick={()=>go("profile")} className="press" style={{width:35,height:35,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fb)",cursor:"pointer"}}>{userName[0]||"G"}</div>
         </div>
         <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 18px 14px"}}>
           <span style={{background:"rgba(255,255,255,.15)",backdropFilter:"blur(8px)",color:"white",padding:"2px 8px",borderRadius:18,fontSize:9,fontWeight:700,fontFamily:"var(--fb)"}}>🔥 Featured Tonight</span>
-          <div style={{fontFamily:"var(--fd)",fontSize:21,fontWeight:700,color:"white",marginTop:4}}>{hot[0].name}</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:21,fontWeight:700,color:"white",marginTop:4}}>{hero.name}</div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:3}}>
-            <span style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {hot[0].city} . {hot[0].distance}</span>
-            <button onClick={()=>go("venue",hot[0])} className="press" style={{background:"white",border:"none",borderRadius:18,color:"var(--ink)",padding:"6px 13px",fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Reserve -></button>
+            <span style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {hero.city} . {hero.distance}</span>
+            <button onClick={()=>go("venue",hero)} className="press" style={{background:"white",border:"none",borderRadius:18,color:"var(--ink)",padding:"6px 13px",fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Reserve -></button>
           </div>
         </div>
       </div>
@@ -355,7 +373,7 @@ function Home({go,city="Miami"}){
           <span className="press" onClick={()=>go("explore")} style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",fontWeight:600}}>See all</span>
         </div>
         <div style={{display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
-          {hot.map((v,i)=>(
+          {hotStrip.map((v,i)=>(
             <div key={v.id} className={`press fu fu${Math.min(i+1,3)}`} onClick={()=>go("venue",v)} style={{flexShrink:0,width:178,borderRadius:16,overflow:"hidden",background:"var(--white)",border:"1px solid var(--line)"}}>
               <div style={{position:"relative",height:125}}>
                 <Img src={v.img} style={{position:"absolute",inset:0}} alt={v.name} type={v.type} name={v.name}/>
@@ -377,7 +395,7 @@ function Home({go,city="Miami"}){
       {/* All list */}
       <div style={{padding:"10px 18px 90px"}}>
         <div style={{fontFamily:"var(--fd)",fontSize:19,fontWeight:700,color:"var(--ink)",marginBottom:10}}>All Venues</div>
-        {VENUES.map(v=>(
+        {display.map(v=>(
           <div key={v.id} className="press" onClick={()=>go("venue",v)} style={{display:"flex",gap:12,padding:"10px 12px",background:"var(--white)",border:"1px solid var(--line)",borderRadius:14,marginBottom:8}}>
             <Img src={v.img} style={{width:58,height:58,borderRadius:12,flexShrink:0}} alt={v.name} type={v.type} name={v.name}/>
             <div style={{flex:1,minWidth:0,paddingTop:2}}>
@@ -396,20 +414,47 @@ function Explore({go,city="Miami"}){
   const [q,setQ]=useState("");
   const [selDate,setSelDate]=useState(null);
   const [typeFilter,setTypeFilter]=useState("All");
-  const [loading,setLoading]=useState(true);
   const metro=city==="New York"?"New York":"Miami";
-  const base=VENUES.filter(v=>v.metro===metro);
+  const {venues:dbVenues,loading}=useVenues(metro);
 
-  // Simulate loading
-  useEffect(()=>{setLoading(true);const t=setTimeout(()=>setLoading(false),600);return()=>clearTimeout(t);},[city]);
+  // Search server-side when query changes (debounced)
+  const [searchResults,setSearchResults]=useState(null);
+  const [searching,setSearching]=useState(false);
+  useEffect(()=>{
+    if(!q||q.length<2){setSearchResults(null);return;}
+    setSearching(true);
+    const t=setTimeout(()=>{
+      fetch(EDGE_URL+"/get-venues?metro="+encodeURIComponent(metro)+"&search="+encodeURIComponent(q),{
+        headers:{"apikey":SUPA_ANON}
+      }).then(r=>r.json()).then(d=>{
+        if(d.venues?.length){
+          const merged=d.venues.map(v=>{
+            const local=VENUES.find(l=>l.name===v.name)||{};
+            return{...local,...v,id:v.id,metro,price:v.price_min,img:v.img_url||local.img,
+              lat:parseFloat(v.lat)||local.lat,lng:parseFloat(v.lng)||local.lng,
+              distance:v.distance||local.distance||"0.5 mi",rating:parseFloat(v.rating)||local.rating||4.5};
+          });
+          setSearchResults(merged);
+        } else setSearchResults([]);
+      }).catch(()=>setSearchResults(null)).finally(()=>setSearching(false));
+    },400);
+    return()=>clearTimeout(t);
+  },[q,metro]);
 
-  const dates=["Tonight","Fri Mar 7","Sat Mar 8","Fri Mar 14","Sat Mar 15"];
-  const types=["All","Rooftop","Nightclub","Lounge","Pool Party"];
+  const base=searchResults!==null?searchResults:dbVenues;
 
   let list=base.filter(v=>
-    (!q||[v.name,v.city,v.type,...v.tags].some(x=>x.toLowerCase().includes(q.toLowerCase())))&&
+    (!q||q.length<2||searchResults!==null||[v.name,v.city,v.type,...(v.tags||[])].some(x=>(x||"").toLowerCase().includes(q.toLowerCase())))&&
     (typeFilter==="All"||v.type===typeFilter)
   );
+
+  const dates=(()=>{
+    const arr=["Tonight"];
+    const d=new Date();
+    for(let i=1;i<=4;i++){const nd=new Date(d);nd.setDate(d.getDate()+i);arr.push(nd.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}));}
+    return arr;
+  })();
+  const types=["All","Rooftop","Nightclub","Lounge","Pool Party"];
 
   const SkeletonCard=({wide})=>(
     <div style={{borderRadius:14,overflow:"hidden",border:"1px solid var(--line)",gridColumn:wide?"1/3":"auto",
@@ -1112,18 +1157,31 @@ function VenueDetail({venue,go}){
   const [submitErr,   setSubmitErr]    = useState("");
 
   const tables = [
-    {id:1,name:"Standard Booth",cap:"2-4",  price:venue.price,                 desc:"Great view, intimate"},
-    {id:2,name:"VIP Booth",     cap:"4-8",  price:Math.round(venue.price*1.8), desc:"Near stage, premium",hot:true},
-    {id:3,name:"Bottle Table",  cap:"6-12", price:Math.round(venue.price*3),   desc:"Full bottle service"},
+    {id:1,name:"Standard Booth",cap:"2-4",  min:2,max:4, price:venue.price,                 desc:"Great view, intimate"},
+    {id:2,name:"VIP Booth",     cap:"4-8",  min:4,max:8, price:Math.round(venue.price*1.8), desc:"Near stage, premium",hot:true},
+    {id:3,name:"Bottle Table",  cap:"6-12", min:6,max:12,price:Math.round(venue.price*3),   desc:"Full bottle service"},
   ];
 
-  // Pricing ALWAYS server-calculated — cannot be spoofed from frontend
+  // Clamp party size when table changes
+  useEffect(() => {
+    if (selT) setParty(p => Math.max(selT.min, Math.min(selT.max, p)));
+  }, [selT?.id]);
+
+  // Pricing - server-calculated with client-side fallback
   const [pricing, setPricing] = useState(null);
   useEffect(() => {
     if (!selT) { setPricing(null); setPromo(null); return; }
+    // Client-side fallback pricing (used when edge function unreachable)
+    const base = selT.price * 100; // cents
+    const fee = Math.round(base * 0.1);
+    const fallback = { base_price: base, discount: 0, platform_fee: fee, total: base + fee, discount_value: 0, discount_type: null };
+    setPricing(fallback);
+    // Try server pricing
     (async () => {
-      const d = await edgeCall("validate-promo", { venue_id: venue.id, guests: party });
-      if (!d?.error) setPricing(d);
+      try {
+        const d = await edgeCall("validate-promo", { venue_id: venue.id, guests: party });
+        if (d && !d.error && d.base_price) setPricing(d);
+      } catch(e) { /* keep fallback */ }
     })();
   }, [selT?.id, party]);
 
@@ -1246,7 +1304,7 @@ function VenueDetail({venue,go}){
 
   // ----------------------------------------------- BOOK STEP ---------------------------------------------
   if (step==="book") return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",minHeight:0,overflow:"hidden"}}>
       <div style={{padding:"8px 18px 10px",display:"flex",alignItems:"center",gap:9,
         borderBottom:"1px solid var(--line)",flexShrink:0}}>
         <button className="press" onClick={()=>setStep("detail")}
@@ -1259,7 +1317,7 @@ function VenueDetail({venue,go}){
         <div style={{marginBottom:14}}>
           <div style={{fontSize:10,color:"var(--sub)",fontWeight:600,textTransform:"uppercase",letterSpacing:".07em",marginBottom:7,fontFamily:"var(--fb)"}}>Date</div>
           <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none"}}>
-            {["Fri Mar 6", "Sat Mar 7", "Fri Mar 13", "Sat Mar 14"].map(d=>(
+            {DATES.map(d=>(
               <button key={d} onClick={()=>setDate(d)} className="press"
                 style={{flexShrink:0,padding:"7px 11px",borderRadius:10,border:"1.5px solid",
                   fontSize:10,fontWeight:600,fontFamily:"var(--fb)",cursor:"pointer",
@@ -1294,16 +1352,24 @@ function VenueDetail({venue,go}){
                 </div>
               </div>
               {selT?.id===t.id&&(
-                <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid rgba(255,255,255,.15)",display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:10,color:"rgba(255,255,255,.6)",fontFamily:"var(--fb)"}}>Party:</span>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}}>
-                    {[-1,null,1].map((d,i)=>d===null
-                      ?<span key="n" style={{fontFamily:"var(--fd)",fontWeight:700,fontSize:15,color:"white",minWidth:18,textAlign:"center"}}>{party}</span>
-                      :<button key={i} onClick={e=>{e.stopPropagation();setParty(p=>Math.max(1,Math.min(12,p+d)));}}
-                        style={{width:26,height:26,borderRadius:7,background:"rgba(255,255,255,.15)",border:"none",color:"white",cursor:"pointer",fontSize:15}}>
-                        {d>0?"+":"−"}</button>
-                    )}
+                <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid rgba(255,255,255,.15)"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:10,color:"rgba(255,255,255,.6)",fontFamily:"var(--fb)"}}>Party:</span>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}}>
+                      {[-1,null,1].map((d,i)=>d===null
+                        ?<span key="n" style={{fontFamily:"var(--fd)",fontWeight:700,fontSize:15,color:"white",minWidth:18,textAlign:"center"}}>{party}</span>
+                        :<button key={i} onClick={e=>{e.stopPropagation();setParty(p=>Math.max(t.min,Math.min(t.max,p+d)));}}
+                          style={{width:26,height:26,borderRadius:7,background:((d<0&&party<=t.min)||(d>0&&party>=t.max))?"rgba(255,255,255,.05)":"rgba(255,255,255,.15)",border:"none",color:((d<0&&party<=t.min)||(d>0&&party>=t.max))?"rgba(255,255,255,.2)":"white",cursor:((d<0&&party<=t.min)||(d>0&&party>=t.max))?"default":"pointer",fontSize:15}}>
+                          {d>0?"+":"−"}</button>
+                      )}
+                    </div>
                   </div>
+                  {party>=t.max&&t.id<3&&(
+                    <div onClick={e=>{e.stopPropagation();const next=tables.find(x=>x.id===t.id+1);if(next){setSelT(next);setParty(next.min);}}}
+                      className="press" style={{marginTop:7,padding:"6px 10px",background:"rgba(201,168,76,.12)",border:"1px solid rgba(201,168,76,.25)",borderRadius:9,fontSize:10,color:"#c9a84c",fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",textAlign:"center"}}>
+                      Need more seats? Upgrade to {tables.find(x=>x.id===t.id+1)?.name} ({tables.find(x=>x.id===t.id+1)?.cap})
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1344,7 +1410,7 @@ function VenueDetail({venue,go}){
           <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:13,padding:"12px 14px",marginBottom:10}}>
             <div style={{fontFamily:"var(--fb)",fontSize:12,fontWeight:700,marginBottom:8}}>Order Summary</div>
             {[
-              ["Table min ("+party+"×$"+Math.round(subtotal/party)+")","$"+subtotal],
+              [selT.name+" ("+party+" guests)","$"+subtotal],
               ["Platform fee (10%)","$"+feePct],
               ...(discountAmt>0?[["Promo code","−$"+discountAmt]]:[]),
             ].map(([k,v])=>(
@@ -1366,7 +1432,7 @@ function VenueDetail({venue,go}){
         <button onClick={submitBooking} disabled={!selT||submitting}
           style={{width:"100%",padding:"12px",background:"var(--ink)",color:"white",border:"none",
             borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,
-            cursor:selT&&!submitting?"pointer":"not-allowed",opacity:!selT||submitting?.35:1,
+            cursor:selT&&!submitting?"pointer":"not-allowed",opacity:(!selT||submitting)?0.35:1,
             display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           {submitting&&<div style={{width:14,height:14,borderRadius:"50%",
             border:"2px solid rgba(255,255,255,.3)",borderTopColor:"white",animation:"spin .7s linear infinite"}}/>}
@@ -1375,6 +1441,121 @@ function VenueDetail({venue,go}){
         <div style={{textAlign:"center",marginTop:6,fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)"}}>
           🔒 Free cancellation 48h before . Powered by Luma
         </div>
+      </div>
+    </div>
+  );
+
+  // ----------------------------------------------- DETAIL VIEW (default) ----------------------------------
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",minHeight:0,overflow:"hidden"}}>
+      <div className="scroll" style={{flex:1,overflowY:"auto"}}>
+        {/* Hero image */}
+        <div style={{position:"relative",height:220}}>
+          <Img src={venue.img} style={{position:"absolute",inset:0}} alt={venue.name} type={venue.type} name={venue.name}/>
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.7),transparent 55%)"}}/>
+          <button className="press" onClick={()=>go("back")}
+            style={{position:"absolute",top:12,left:14,background:"rgba(255,255,255,.15)",backdropFilter:"blur(8px)",
+              border:"1px solid rgba(255,255,255,.2)",borderRadius:10,color:"white",padding:"6px 12px",
+              fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"var(--fb)",zIndex:10}}>
+            {"<"} Back
+          </button>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 18px 16px"}}>
+            <div style={{display:"flex",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+              {venue.tags&&venue.tags.map(t=>(
+                <span key={t} style={{background:"rgba(255,255,255,.15)",backdropFilter:"blur(8px)",color:"white",
+                  padding:"2px 8px",borderRadius:18,fontSize:9,fontWeight:700,fontFamily:"var(--fb)"}}>{t}</span>
+              ))}
+            </div>
+            <div style={{fontFamily:"var(--fd)",fontSize:24,fontWeight:700,color:"white"}}>{venue.name}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.6)",fontFamily:"var(--fb)",marginTop:3}}>
+              {venue.type} . {venue.city} . {venue.distance}
+            </div>
+          </div>
+        </div>
+
+        <div style={{padding:"16px 18px 90px"}}>
+          {/* Rating & price */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <Stars r={venue.rating}/>
+              {venue.reviews&&<span style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)"}}>({venue.reviews})</span>}
+            </div>
+            <div style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"var(--ink)"}}>${venue.price}+</div>
+          </div>
+
+          {/* About */}
+          {venue.about&&(
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:10,color:"var(--sub)",fontWeight:600,textTransform:"uppercase",letterSpacing:".07em",marginBottom:6,fontFamily:"var(--fb)"}}>About</div>
+              <div style={{fontSize:13,color:"var(--ink2)",fontFamily:"var(--fb)",lineHeight:1.65}}>{venue.about}</div>
+            </div>
+          )}
+
+          {/* Address */}
+          {venue.address&&(
+            <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:14,padding:"12px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:18}}>📍</span>
+              <div>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--ink)",fontFamily:"var(--fb)"}}>{venue.address}</div>
+                <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:1}}>{venue.city}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Quick info cards */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+            {[
+              ["💰","From","$"+venue.price],
+              ["👥","Capacity","2-12"],
+              ["🕐","Opens","10 PM"],
+            ].map(([ic,label,val])=>(
+              <div key={label} style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:12,padding:"10px 8px",textAlign:"center"}}>
+                <div style={{fontSize:16,marginBottom:4}}>{ic}</div>
+                <div style={{fontSize:12,fontWeight:700,color:"var(--ink)",fontFamily:"var(--fd)"}}>{val}</div>
+                <div style={{fontSize:9,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:1}}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Available dates preview */}
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:10,color:"var(--sub)",fontWeight:600,textTransform:"uppercase",letterSpacing:".07em",marginBottom:8,fontFamily:"var(--fb)"}}>Available Dates</div>
+            <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingRight:18}}>
+              {DATES.map(d=>(
+                <div key={d} style={{flexShrink:0,background:"var(--white)",border:"1px solid var(--line)",borderRadius:10,padding:"8px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:11,fontWeight:600,color:"var(--ink)",fontFamily:"var(--fb)"}}>{d}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Table options preview */}
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:10,color:"var(--sub)",fontWeight:600,textTransform:"uppercase",letterSpacing:".07em",marginBottom:8,fontFamily:"var(--fb)"}}>Table Options</div>
+            {tables.map(t=>(
+              <div key={t.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                padding:"10px 13px",background:"var(--white)",border:"1px solid var(--line)",borderRadius:12,marginBottom:6}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:"var(--ink)",fontFamily:"var(--fb)"}}>{t.name}</div>
+                  <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:1}}>{t.desc} . {t.cap} guests</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontFamily:"var(--fd)",fontSize:14,fontWeight:700,color:"var(--ink)"}}>${t.price}</div>
+                  <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)"}}>min</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky reserve button */}
+      <div style={{padding:"10px 18px 14px",borderTop:"1px solid var(--line)",background:"rgba(245,244,240,.97)",backdropFilter:"blur(20px)",flexShrink:0}}>
+        <button className="press" onClick={()=>setStep("book")}
+          style={{width:"100%",padding:"14px",background:"var(--ink)",color:"white",border:"none",
+            borderRadius:13,fontSize:14,fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer"}}>
+          Reserve a Table
+        </button>
       </div>
     </div>
   );
@@ -1393,7 +1574,7 @@ function ProCard({children,style={},onClick}){
   return <div onClick={onClick} className={onClick?"press":""} style={{background:P.bg,border:P.border,borderRadius:16,...style}}>{children}</div>;
 }
 
-function ProDash({setTab}){
+function ProDash({setTab,userName="Promoter"}){
   const [showPaywall,setShowPaywall]=useState(false);
   const earned=PAYOUTS.filter(p=>p.status==="paid").reduce((s,p)=>s+p.comm,0);
   const pending=PAYOUTS.filter(p=>p.status==="pending").reduce((s,p)=>s+p.comm,0);
@@ -1404,7 +1585,7 @@ function ProDash({setTab}){
     <div className="scroll fi" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
       <div style={{padding:"4px 18px 14px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div><div style={{fontFamily:"var(--fd)",fontSize:13,fontStyle:"italic",color:P.sub}}>Welcome back,</div><div style={{fontFamily:"var(--fd)",fontSize:25,fontWeight:700,color:"white"}}>Eric</div></div>
+          <div><div style={{fontFamily:"var(--fd)",fontSize:13,fontStyle:"italic",color:P.sub}}>Welcome back,</div><div style={{fontFamily:"var(--fd)",fontSize:25,fontWeight:700,color:"white"}}>{userName}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <div style={{background:"var(--goldbg)",border:"1px solid rgba(201,168,76,.3)",borderRadius:20,padding:"4px 11px"}}><span style={{fontSize:10,color:"var(--gold)",fontWeight:700,fontFamily:"var(--fb)"}}>✦ PROMOTER</span></div>
             <button className="press" onClick={()=>setShowPaywall(true)} style={{background:"rgba(201,168,76,.12)",border:"1px solid rgba(201,168,76,.25)",borderRadius:20,padding:"4px 12px",cursor:"pointer",fontSize:9,color:"var(--gold)",fontWeight:700,fontFamily:"var(--fb)"}}>⬆ Upgrade</button>
@@ -1461,7 +1642,7 @@ function ProDash({setTab}){
   );
 }
 
-function ProGuests(){
+function ProGuests({setTab,onMessage}){
   const [checked,setChecked]=useState({1:true,2:true});
   const sc={confirmed:"rgba(74,222,128,.13)",pending:"rgba(251,191,36,.1)",cancelled:"rgba(239,68,68,.08)"};
   const tc={confirmed:"#4ade80",pending:"#fbbf24",cancelled:"#f87171"};
@@ -1502,7 +1683,7 @@ function ProGuests(){
                 <button className="press" onClick={()=>setChecked(p=>({...p,[g.id]:!p[g.id]}))} style={{flex:1,padding:"7px",borderRadius:9,border:"none",fontFamily:"var(--fb)",fontSize:11,fontWeight:700,cursor:"pointer",background:checked[g.id]?"rgba(74,222,128,.18)":"rgba(255,255,255,.07)",color:checked[g.id]?"#4ade80":"rgba(255,255,255,.4)"}}>
                   {checked[g.id]?"✓ Checked In":"Check In"}
                 </button>
-                <button className="press" style={{flex:1,padding:"7px",borderRadius:9,border:"1px solid rgba(255,255,255,.09)",background:"transparent",color:"rgba(255,255,255,.35)",fontSize:11,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Message</button>
+                <button className="press" onClick={()=>onMessage&&onMessage(g.name)} style={{flex:1,padding:"7px",borderRadius:9,border:"1px solid rgba(255,255,255,.09)",background:"transparent",color:"rgba(255,255,255,.35)",fontSize:11,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Message</button>
               </div>
             )}
           </ProCard>
@@ -1517,10 +1698,19 @@ function ProLinks(){
   const [copyErr,setCopyErr]=useState(null);
   const [showNew,setShowNew]=useState(false);
   const [newLabel,setNewLabel]=useState("");
+  const [links,setLinks]=useState(LINKS);
+  const [selVenue,setSelVenue]=useState(null);
   const copy=async(id,url)=>{
     const ok=await copyToClipboard(url);
     if(ok){setCopied(id);setTimeout(()=>setCopied(null),2000);}
     else{setCopyErr(id);setTimeout(()=>setCopyErr(null),2500);}
+  };
+  const createLink=()=>{
+    if(!newLabel.trim())return;
+    const slug=newLabel.trim().toUpperCase().replace(/[^A-Z0-9]/g,"-").slice(0,20);
+    const newLink={id:Date.now(),label:newLabel.trim(),url:"luma.vip/p/"+slug,clicks:0,conv:0};
+    setLinks(l=>[newLink,...l]);
+    setNewLabel("");setSelVenue(null);setShowNew(false);
   };
   const [qr,setQr]=useState(null);
   if(qr) return(
@@ -1554,21 +1744,32 @@ function ProLinks(){
         <button className="press" onClick={()=>setShowNew(!showNew)} style={{width:"100%",padding:"11px",background:"var(--gold)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer",marginBottom:12}}>+ Create New Link</button>
         {showNew&&(
           <ProCard style={{padding:"13px 14px",marginBottom:12}}>
+            <div style={{fontSize:10,color:P.sub,fontWeight:600,fontFamily:"var(--fb)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:6}}>Event / Venue</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+              {["Noir Rooftop","Azure Terrace","Velvet Underground","Soleil Pool Club"].map(v=>(
+                <button key={v} onClick={()=>{setSelVenue(v);if(!newLabel)setNewLabel(v);}} className="press"
+                  style={{padding:"6px 10px",borderRadius:9,fontSize:10,fontWeight:600,fontFamily:"var(--fb)",
+                    border:"1.5px solid",cursor:"pointer",
+                    background:selVenue===v?"var(--gold)":"rgba(255,255,255,.04)",
+                    borderColor:selVenue===v?"var(--gold)":"rgba(255,255,255,.1)",
+                    color:selVenue===v?"#0a0a0a":"rgba(255,255,255,.5)"}}>
+                  {v}
+                </button>
+              ))}
+            </div>
             <div style={{fontSize:10,color:P.sub,fontWeight:600,fontFamily:"var(--fb)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:6}}>Label</div>
-            <input value={newLabel} onChange={e=>setNewLabel(sanitize(e.target.value,80))} maxLength={80} placeholder="e.g. Noir - Sat Mar 8" style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 11px",color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none",marginBottom:10}}/>
-            <div style={{fontSize:10,color:P.sub,fontWeight:600,fontFamily:"var(--fb)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:7}}>Table Minimum</div>
-            {[["Standard Booth","$85 min"],["VIP Booth","$153 min"],["Bottle Table","$255 min"]].map(([n,p])=>(
-              <div key={n} className="press" style={{display:"flex",justifyContent:"space-between",padding:"8px 11px",background:"rgba(255,255,255,.04)",borderRadius:9,marginBottom:5,border:"1px solid rgba(255,255,255,.07)"}}>
-                <span style={{fontSize:12,color:"white",fontFamily:"var(--fb)"}}>{n}</span>
-                <span style={{fontSize:12,color:"var(--gold)",fontFamily:"var(--fd)",fontWeight:700}}>{p}</span>
-              </div>
-            ))}
-            <button className="press" onClick={()=>setShowNew(false)} style={{width:"100%",padding:"10px",background:"var(--gold)",color:"white",border:"none",borderRadius:11,fontSize:12,fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer",marginTop:8}}>Generate Link</button>
+            <input value={newLabel} onChange={e=>setNewLabel(sanitize(e.target.value,80))} maxLength={80} placeholder="e.g. Noir Rooftop - Friday" style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 11px",color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none",marginBottom:10}}/>
+            <button className="press" onClick={createLink}
+              style={{width:"100%",padding:"10px",background:newLabel.trim()?"var(--gold)":"rgba(255,255,255,.07)",
+                color:newLabel.trim()?"#0a0a0a":"rgba(255,255,255,.3)",border:"none",borderRadius:11,fontSize:12,
+                fontFamily:"var(--fb)",fontWeight:700,cursor:newLabel.trim()?"pointer":"default",marginTop:4}}>
+              Generate Link
+            </button>
           </ProCard>
         )}
         <div style={{fontSize:10,fontWeight:600,color:P.sub,fontFamily:"var(--fb)",letterSpacing:".08em",textTransform:"uppercase",marginBottom:9}}>Active Links</div>
         <div style={{display:"flex",flexDirection:"column",gap:9,paddingBottom:90}}>
-          {LINKS.map(l=>{
+          {links.map(l=>{
             const cvr=l.clicks>0?Math.round((l.conv/l.clicks)*100):0;
             return(
               <ProCard key={l.id} style={{padding:"13px 14px"}}>
@@ -1686,12 +1887,45 @@ function ProPayouts(){
   );
 }
 
-function ProMessages(){
+function ProMessages({initialOpen,onOpened}){
+  const [threads,setThreads]=useState(MSGS);
   const [open,setOpen]=useState(null);
   const [msg,setMsg]=useState("");
-  const [threads,setThreads]=useState(MSGS);
   const ref=useRef(null);
+  const didInit=useRef(false);
+
+  // On mount or when initialOpen changes, find or create thread
+  useEffect(()=>{
+    if(!initialOpen||didInit.current)return;
+    didInit.current=true;
+    const existing=threads.find(c=>c.name===initialOpen);
+    if(existing){
+      setOpen(existing.id);
+    }else{
+      const newId=Date.now();
+      const newThread={id:newId,name:initialOpen,av:initialOpen[0],last:"No messages yet",time:"Now",unread:0,
+        thread:[{m:true,t:"Hey "+initialOpen.split(" ")[0]+"! How can I help you tonight?"}]};
+      setThreads(t=>[newThread,...t]);
+      setOpen(newId);
+    }
+    if(onOpened)onOpened();
+  },[initialOpen]);
   useEffect(()=>{if(ref.current) ref.current.scrollTop=ref.current.scrollHeight;},[open,threads]);
+
+  // Poll for new messages every 10 seconds when a thread is open
+  useEffect(()=>{
+    if(!open) return;
+    const sess=getSession();
+    if(!sess?.access_token) return;
+    const poll=setInterval(()=>{
+      edgeCall("send-message",{action:"fetch",thread_id:open}).then(d=>{
+        if(d?.messages?.length){
+          setThreads(ts=>ts.map(c=>c.id===open?{...c,thread:d.messages.map(m=>({m:m.sender==="promoter",t:m.text})),last:d.messages[d.messages.length-1]?.text||c.last}:c));
+        }
+      }).catch(()=>{});
+    },10000);
+    return()=>clearInterval(poll);
+  },[open]);
   const send=()=>{
     const clean=sanitize(msg,500);
     if(!clean||!msgRateLimit())return;
@@ -1700,6 +1934,7 @@ function ProMessages(){
   };
   if(open){
     const conv=threads.find(c=>c.id===open);
+    if(!conv) return null;
     return(
       <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
         <div style={{padding:"8px 18px 10px",display:"flex",alignItems:"center",gap:9,borderBottom:"1px solid rgba(255,255,255,.07)",flexShrink:0}}>
@@ -1822,6 +2057,15 @@ function ProPricing(){
     {id:3,name:"Bottle Table",cap:"6-12",min:255,on:false},
   ]);
   const [saved,setSaved]=useState(false);
+  const [showAdd,setShowAdd]=useState(false);
+  const [newName,setNewName]=useState("");
+  const [newCap,setNewCap]=useState("");
+  const [newMin,setNewMin]=useState("");
+  const addTable=()=>{
+    if(!newName.trim()||!newMin)return;
+    setTables(t=>[...t,{id:Date.now(),name:newName.trim(),cap:newCap||"2-8",min:Number(newMin)||100,on:true}]);
+    setNewName("");setNewCap("");setNewMin("");setShowAdd(false);
+  };
   return(
     <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
       <div style={{padding:"4px 18px 90px"}}>
@@ -1835,6 +2079,49 @@ function ProPricing(){
         {tables.map(t=>(
           <TableRow key={t.id} t={t} onChange={updated=>setTables(ts=>ts.map(x=>x.id===updated.id?updated:x))}/>
         ))}
+        {/* Add custom table */}
+        {!showAdd?(
+          <button className="press" onClick={()=>setShowAdd(true)}
+            style={{width:"100%",padding:"11px",background:"rgba(255,255,255,.05)",
+              border:"1.5px dashed rgba(255,255,255,.12)",borderRadius:13,fontSize:12,
+              fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",color:"rgba(255,255,255,.35)",
+              marginBottom:8}}>
+            + Add Custom Table Type
+          </button>
+        ):(
+          <ProCard style={{padding:"13px 14px",marginBottom:8}}>
+            <div style={{fontSize:10,color:P.sub,fontWeight:600,fontFamily:"var(--fb)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:6}}>New Table Type</div>
+            <input value={newName} onChange={e=>setNewName(e.target.value.slice(0,30))} maxLength={30}
+              placeholder="e.g. Cabana, Skybox, Daybed"
+              style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",
+                borderRadius:10,padding:"8px 11px",color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none",marginBottom:8}}/>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)",marginBottom:4}}>Capacity</div>
+                <input value={newCap} onChange={e=>setNewCap(e.target.value.slice(0,10))} maxLength={10}
+                  placeholder="e.g. 4-10"
+                  style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",
+                    borderRadius:10,padding:"8px 11px",color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)",marginBottom:4}}>Min spend ($)</div>
+                <input type="number" value={newMin} onChange={e=>setNewMin(e.target.value)}
+                  placeholder="200"
+                  style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",
+                    borderRadius:10,padding:"8px 11px",color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:7}}>
+              <button className="press" onClick={()=>setShowAdd(false)}
+                style={{flex:1,padding:"9px",background:"rgba(255,255,255,.07)",border:"none",borderRadius:10,
+                  color:"rgba(255,255,255,.4)",fontSize:11,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Cancel</button>
+              <button className="press" onClick={addTable}
+                style={{flex:1,padding:"9px",background:newName.trim()&&newMin?"var(--gold)":"rgba(255,255,255,.07)",
+                  border:"none",borderRadius:10,color:newName.trim()&&newMin?"#0a0a0a":"rgba(255,255,255,.3)",
+                  fontSize:11,fontFamily:"var(--fb)",fontWeight:700,cursor:newName.trim()&&newMin?"pointer":"default"}}>Add Table</button>
+            </div>
+          </ProCard>
+        )}
         <button className="press" onClick={()=>{setSaved(true);setTimeout(()=>setSaved(false),2000);}}
           style={{width:"100%",padding:"13px",background:saved?"rgba(201,168,76,.2)":"var(--gold)",
             color:saved?"var(--gold)":"#0a0a0a",border:saved?"1px solid var(--gold)":"none",
@@ -2175,27 +2462,38 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
           textTransform:"uppercase",fontFamily:"var(--fb)",marginBottom:12}}>Share via</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:22}}>
           {[
-            {icon:"📸",label:"IG Story",bg:"linear-gradient(135deg,#e1306c,#c13584)"},
-            {icon:"𝕏",label:"Twitter",bg:"#000"},
-            {icon:"🎵",label:"TikTok",bg:"#010101"},
-            {icon:"💬",label:"WhatsApp",bg:"#25d366"},
-            {icon:"📘",label:"Facebook",bg:"#1877f2"},
-            {icon:"✈️",label:"Telegram",bg:"#0088cc"},
-            {icon:"📋",label:"Copy Link",bg:"var(--gold)"},
-            {icon:"⬆",label:"More",bg:"rgba(255,255,255,.1)"},
+            {label:"IG Story",bg:"linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)",
+             svg:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="white" stroke="none"/></svg>},
+            {label:"Twitter",bg:"#000",
+             svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>},
+            {label:"TikTok",bg:"#010101",
+             svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.44V13a8.16 8.16 0 005.58 2.17V11.7a4.83 4.83 0 01-3.77-1.24V6.69z"/></svg>},
+            {label:"WhatsApp",bg:"#25d366",
+             svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>},
+            {label:"Facebook",bg:"#1877f2",
+             svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>},
+            {label:"Telegram",bg:"#0088cc",
+             svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>},
+            {label:"Copy Link",bg:"var(--gold)",
+             svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>},
+            {label:"More",bg:"rgba(255,255,255,.12)",
+             svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M4 12h16M12 4v16"/></svg>},
           ].map(s=>(
-            <div key={s.label} onClick={()=>{
-              const txt="Book VIP with me -> luma.vip/"+promoter.handle;
-              if(navigator.clipboard) navigator.clipboard.writeText(txt).catch(()=>{});
+            <div key={s.label} onClick={async()=>{
+              const plat=PLATFORMS.find(p=>p.label.toLowerCase().includes(s.label.toLowerCase().split(" ")[0]));
+              const txt=plat?plat.text:"Book VIP with me -> luma.vip/"+promoter.handle;
+              const ok=await copyToClipboard(txt);
+              if(ok){setPlatCopied(s.label);setTimeout(()=>setPlatCopied(null),2000);}
+              else{setPlatErr(s.label);setTimeout(()=>setPlatErr(null),2500);}
             }} className="press"
               style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,cursor:"pointer"}}>
               <div style={{width:56,height:56,borderRadius:18,
-                background:s.bg,
+                background:platCopied===s.label?"#16a34a":s.bg,
                 display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:22,boxShadow:"0 4px 16px rgba(0,0,0,.35)"}}>
-                {s.icon}
+                boxShadow:"0 4px 16px rgba(0,0,0,.35)",transition:"background .2s"}}>
+                {platCopied===s.label?<span style={{color:"white",fontSize:20}}>✓</span>:s.svg}
               </div>
-              <span style={{fontSize:9,color:"rgba(255,255,255,.4)",fontFamily:"var(--fb)",fontWeight:600,textAlign:"center",lineHeight:1.3}}>{s.label}</span>
+              <span style={{fontSize:9,color:platCopied===s.label?"#4ade80":"rgba(255,255,255,.4)",fontFamily:"var(--fb)",fontWeight:600,textAlign:"center",lineHeight:1.3,transition:"color .2s"}}>{platCopied===s.label?"Copied!":s.label}</span>
             </div>
           ))}
         </div>
@@ -2208,18 +2506,23 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
           {lbl:"Story",txt:"VIP access, no wait. Book through my profile 🔗 luma.vip/"+promoter.handle},
           {lbl:"Bio",txt:"📍 "+promoter.city.split(".")[0].trim()+" | Book VIP tables -> luma.vip/"+promoter.handle},
         ].map(c=>(
-          <div key={c.lbl} className="press" onClick={()=>{
-            if(navigator.clipboard) navigator.clipboard.writeText(c.txt).catch(()=>{});
-            copyPlat({text:c.txt});
+          <div key={c.lbl} className="press" onClick={async()=>{
+            const ok=await copyToClipboard(c.txt);
+            if(ok){setPlatCopied(c.lbl);setTimeout(()=>setPlatCopied(null),2000);}
+            else{setPlatErr(c.lbl);setTimeout(()=>setPlatErr(null),2500);}
           }}
-            style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",
+            style={{background:platCopied===c.lbl?"rgba(74,222,128,.08)":"rgba(255,255,255,.05)",
+              border:"1px solid "+(platCopied===c.lbl?"rgba(74,222,128,.2)":"rgba(255,255,255,.08)"),
               borderRadius:13,padding:"12px 14px",marginBottom:8,cursor:"pointer",
-              display:"flex",alignItems:"flex-start",gap:11}}>
+              display:"flex",alignItems:"flex-start",gap:11,transition:"all .2s"}}>
             <span style={{fontSize:9,background:"rgba(201,168,76,.15)",color:"var(--gold)",
               padding:"2px 8px",borderRadius:8,fontWeight:700,fontFamily:"var(--fb)",
               flexShrink:0,marginTop:1}}>{c.lbl}</span>
             <div style={{fontSize:11,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",lineHeight:1.55,flex:1}}>{c.txt}</div>
-            <div style={{fontSize:16,color:"rgba(255,255,255,.2)",flexShrink:0}}>&#x2398;</div>
+            <div style={{fontSize:platCopied===c.lbl?10:16,color:platCopied===c.lbl?"#4ade80":"rgba(255,255,255,.2)",
+              flexShrink:0,fontFamily:"var(--fb)",fontWeight:700,transition:"all .2s"}}>
+              {platCopied===c.lbl?"✓ Copied":platErr===c.lbl?"Failed":"⎘"}
+            </div>
           </div>
         ))}
       </div>
@@ -2227,7 +2530,7 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
   );
 
   if(msgOpen) return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",minHeight:0,overflow:"hidden"}}>
       <div style={{padding:"8px 18px 10px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid var(--line)",flexShrink:0,background:"var(--white)"}}>
         <button className="press" onClick={()=>setMsgOpen(false)} style={{width:32,height:32,borderRadius:9,background:"transparent",border:"1.5px solid var(--line2)",cursor:"pointer",fontSize:16,color:"var(--ink)"}}>‹</button>
         <div style={{width:32,height:32,borderRadius:"50%",background:"var(--ink)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fd)",fontStyle:"italic"}}>{promoter.avatar}</div>
@@ -2368,7 +2671,10 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
 
 // ----------------------------------------------- Invite Link Landing (when guest arrives via promoter link) -
 function InviteLanding({promoter,event,go,goBack,goPromoter}){
-  // mount animation handled by wrapper
+  // Track link click on mount
+  useEffect(()=>{
+    trackLinkClick(event?.linkId||null, promoter?.id||null);
+  },[]);
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",animation:"scaleIn .28s cubic-bezier(.16,1,.3,1) both"}}>
       <div className="scroll" style={{flex:1,overflowY:"auto"}}>
@@ -2471,7 +2777,7 @@ function ProPaywall({onSelect,onClose}){
           <div key={p.id} onClick={()=>p.id!=="elite"&&setSel(p.id)} className={p.id!=="elite"?"press":""}
             style={{background:p.color,border:"1.5px solid "+(sel===p.id?"var(--gold)":p.border),
               borderRadius:18,padding:"16px",marginBottom:10,cursor:p.id==="elite"?"default":"pointer",
-              transition:"all .2s",position:"relative",opacity:p.id==="elite"?.6:1}}>
+              transition:"all .2s",position:"relative",opacity:p.id==="elite"?0.6:1}}>
             {p.badge&&(
               <div style={{position:"absolute",top:-1,right:14,
                 background:p.id==="pro"?"var(--gold)":"rgba(255,255,255,.1)",
@@ -2539,6 +2845,10 @@ function Onboard({onDone}){
   const [role,setRole]=useState(null); // "guest" | "promoter"
   const [step,setStep]=useState(0);   // steps within role flow
   const [city,setCity]=useState(null);
+  // Promoter profile fields - must be before any returns (rules of hooks)
+  const [proHandle,setProHandle]=useState("");
+  const [proBio,setProBio]=useState("");
+  const [proSpecialties,setProSpecialties]=useState([]);
 
   // Role picker shown first
   if(!role) return(
@@ -2592,6 +2902,9 @@ function Onboard({onDone}){
   const btnColor=dark?"#0a0a0a":"white";
   const btnShadow=dark?"0 8px 28px rgba(201,168,76,.3)":"0 8px 28px rgba(0,0,0,.18)";
 
+  // Promoter profile fields already declared above
+  const specOptions=["Rooftop","Nightclub","Lounge","Pool Party","DJ Events","Latin Nights","Hip-Hop","EDM","Bottle Service"];
+
   const guestSteps=[
     {emoji:"🌃",title:"Your city's nightlife,\ncurated.",sub:"Skip the line. Book VIP tables, get exclusive deals from local promoters."},
     {emoji:"🎟",title:"Real promoters,\nreal access.",sub:"Every promoter is verified. They bring you deals no one else can get."},
@@ -2599,15 +2912,16 @@ function Onboard({onDone}){
   ];
   const proSteps=[
     {emoji:"📊",title:"Your command\ncenter.",sub:"Guest lists, invite links, payouts, and analytics - all in one place."},
-    {emoji:"🔗",title:"Invite links that\nconvert.",sub:"Share your unique link. Get credited for every booking you bring in."},
+    {emoji:"🔗",title:"Set up your\npromoter profile.",sub:"Guests will find you by your handle and specialties.",profileSetup:true},
     {emoji:"💰",title:"Where are you\nworking?",sub:"We'll set up your dashboard for your market.",cities:["Miami","New York"]},
   ];
   const steps=dark?proSteps:guestSteps;
   const s=steps[step];
   const isLast=step===steps.length-1;
   const canContinue=!isLast||(isLast&&city);
+  const canContinueProfile=!s.profileSetup||proHandle.trim().length>=2;
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",overflow:"hidden",position:"relative",animation:"scaleIn .32s cubic-bezier(.16,1,.3,1) both"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:bg,overflow:"hidden",position:"relative",animation:"scaleIn .32s cubic-bezier(.16,1,.3,1) both"}}>
       {/* Subtle top glow accent */}
       <div style={{position:"absolute",top:-60,left:"50%",transform:"translateX(-50%)",
         width:340,height:240,borderRadius:"50%",
@@ -2617,15 +2931,15 @@ function Onboard({onDone}){
       {/* Skip */}
       {step<2&&<button onClick={()=>onDone(city||"Miami")}
         style={{position:"absolute",top:18,right:20,background:"transparent",border:"none",
-          color:"var(--dim)",fontSize:11,fontFamily:"var(--fb)",cursor:"pointer",
-          fontWeight:600,letterSpacing:".04em"}}>Skip</button>}
+          color:dark?"rgba(255,255,255,.3)":"var(--dim)",fontSize:11,fontFamily:"var(--fb)",cursor:"pointer",
+          fontWeight:600,letterSpacing:".04em",zIndex:10}}>Skip</button>}
 
       {/* Dot indicators */}
       <div style={{position:"absolute",top:24,left:"50%",transform:"translateX(-50%)",
         display:"flex",gap:5}}>
         {steps.map((_,i)=>(
           <div key={i} style={{width:i===step?18:6,height:6,borderRadius:3,
-            background:i===step?"var(--ink)":"var(--line2)",
+            background:i===step?dotAct:dot,
             transition:"all .3s cubic-bezier(.34,1.56,.64,1)"}}/>
         ))}
       </div>
@@ -2634,12 +2948,58 @@ function Onboard({onDone}){
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
         justifyContent:"center",padding:"60px 32px 0",textAlign:"center"}} key={step}>
         <div style={{fontSize:72,marginBottom:28,animation:"popIn .5s cubic-bezier(.34,1.56,.64,1) both"}}>{s.emoji}</div>
-        <div style={{fontFamily:"var(--fd)",fontSize:32,fontWeight:700,color:"var(--ink)",
+        <div style={{fontFamily:"var(--fd)",fontSize:32,fontWeight:700,color:ink,
           lineHeight:1.22,marginBottom:14,whiteSpace:"pre-line",
           animation:"fadeUp .4s cubic-bezier(.16,1,.3,1) .1s both"}}>{s.title}</div>
-        <div style={{fontSize:14,color:"var(--sub)",fontFamily:"var(--fb)",
+        <div style={{fontSize:14,color:sub,fontFamily:"var(--fb)",
           lineHeight:1.65,maxWidth:280,
           animation:"fadeUp .4s cubic-bezier(.16,1,.3,1) .18s both"}}>{s.sub}</div>
+
+        {/* Promoter profile setup */}
+        {s.profileSetup&&(
+          <div style={{width:"100%",maxWidth:300,marginTop:24,textAlign:"left",
+            animation:"fadeUp .4s cubic-bezier(.16,1,.3,1) .26s both"}}>
+            <div style={{fontSize:10,color:sub,fontWeight:600,fontFamily:"var(--fb)",
+              textTransform:"uppercase",letterSpacing:".07em",marginBottom:6}}>Your Handle</div>
+            <div style={{display:"flex",alignItems:"center",background:dark?"rgba(255,255,255,.07)":"var(--white)",
+              border:`1.5px solid ${dark?"rgba(255,255,255,.12)":"var(--line2)"}`,
+              borderRadius:12,padding:"10px 14px",marginBottom:14}}>
+              <span style={{color:sub,fontSize:13,fontFamily:"var(--fb)",marginRight:2}}>@</span>
+              <input value={proHandle} onChange={e=>setProHandle(e.target.value.replace(/[^a-zA-Z0-9_.]/g,"").slice(0,20))}
+                maxLength={20} placeholder="yourhandle"
+                style={{flex:1,background:"transparent",border:"none",outline:"none",
+                  color:ink,fontSize:13,fontFamily:"var(--fb)"}}/>
+            </div>
+            <div style={{fontSize:10,color:sub,fontWeight:600,fontFamily:"var(--fb)",
+              textTransform:"uppercase",letterSpacing:".07em",marginBottom:6}}>Short Bio</div>
+            <input value={proBio} onChange={e=>setProBio(e.target.value.slice(0,80))}
+              maxLength={80} placeholder="e.g. Miami's top rooftop promoter"
+              style={{width:"100%",background:dark?"rgba(255,255,255,.07)":"var(--white)",
+                border:`1.5px solid ${dark?"rgba(255,255,255,.12)":"var(--line2)"}`,
+                borderRadius:12,padding:"10px 14px",color:ink,fontSize:13,
+                fontFamily:"var(--fb)",outline:"none",marginBottom:14}}/>
+            <div style={{fontSize:10,color:sub,fontWeight:600,fontFamily:"var(--fb)",
+              textTransform:"uppercase",letterSpacing:".07em",marginBottom:8}}>Specialties</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {specOptions.map(sp=>{
+                const on=proSpecialties.includes(sp);
+                return(
+                  <button key={sp} onClick={()=>setProSpecialties(p=>on?p.filter(x=>x!==sp):[...p,sp].slice(0,4))}
+                    className="press"
+                    style={{padding:"6px 12px",borderRadius:18,fontSize:11,fontWeight:600,
+                      fontFamily:"var(--fb)",border:"1.5px solid",cursor:"pointer",
+                      transition:"all .15s",
+                      background:on?(dark?"var(--gold)":"var(--ink)"):"transparent",
+                      borderColor:on?(dark?"var(--gold)":"var(--ink)"):(dark?"rgba(255,255,255,.12)":"var(--line2)"),
+                      color:on?(dark?"#0a0a0a":"white"):(dark?"rgba(255,255,255,.5)":"var(--sub)")}}>
+                    {sp}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{fontSize:9,color:sub,fontFamily:"var(--fb)",marginTop:8,textAlign:"center"}}>Pick up to 4</div>
+          </div>
+        )}
 
         {/* City picker */}
         {s.cities&&(
@@ -2650,9 +3010,9 @@ function Onboard({onDone}){
                 style={{padding:"13px 26px",borderRadius:16,fontSize:14,fontWeight:700,
                   fontFamily:"var(--fb)",cursor:"pointer",border:"2px solid",
                   transition:"all .2s",
-                  background:city===c?"var(--ink)":"var(--white)",
-                  borderColor:city===c?"var(--ink)":"var(--line2)",
-                  color:city===c?"white":"var(--ink2)"}}>
+                  background:city===c?(dark?"var(--gold)":"var(--ink)"):(dark?"rgba(255,255,255,.07)":"var(--white)"),
+                  borderColor:city===c?(dark?"var(--gold)":"var(--ink)"):(dark?"rgba(255,255,255,.12)":"var(--line2)"),
+                  color:city===c?(dark?"#0a0a0a":"white"):(dark?"rgba(255,255,255,.5)":"var(--ink2)")}}>
                 {c==="Miami"?"🌴":"🗽"} {c}
               </button>
             ))}
@@ -2662,18 +3022,18 @@ function Onboard({onDone}){
 
       {/* CTA */}
       <div style={{padding:"0 28px 52px"}}>
-        <button onClick={()=>isLast?canContinue&&onDone(city,role):setStep(s=>s+1)}
+        <button onClick={()=>isLast?canContinue&&onDone(city,role):canContinueProfile&&setStep(s2=>s2+1)}
           className="press"
           style={{width:"100%",padding:"16px",borderRadius:18,fontSize:15,fontWeight:700,
             fontFamily:"var(--fb)",cursor:"pointer",border:"none",
-            background:canContinue?"var(--ink)":"var(--line2)",
-            color:canContinue?"white":"var(--dim)",
-            transition:"all .25s",boxShadow:canContinue?"0 8px 28px rgba(0,0,0,.18)":"none"}}>
+            background:(isLast?canContinue:canContinueProfile)?btnBg:(dark?"rgba(255,255,255,.1)":"var(--line2)"),
+            color:(isLast?canContinue:canContinueProfile)?btnColor:(dark?"rgba(255,255,255,.3)":"var(--dim)"),
+            transition:"all .25s",boxShadow:(isLast?canContinue:canContinueProfile)?btnShadow:"none"}}>
           {isLast?"Let's go ->":"Continue"}
         </button>
-        {step>0&&<button onClick={()=>setStep(s=>s-1)}
+        {step>0&&<button onClick={()=>setStep(s2=>s2-1)}
           style={{width:"100%",marginTop:10,padding:"10px",background:"transparent",
-            border:"none",color:"var(--dim)",fontSize:12,fontFamily:"var(--fb)",
+            border:"none",color:dark?"rgba(255,255,255,.3)":"var(--dim)",fontSize:12,fontFamily:"var(--fb)",
             cursor:"pointer"}}>Back</button>}
       </div>
     </div>
@@ -2681,15 +3041,27 @@ function Onboard({onDone}){
 }
 
 // ----------------------------------------------- Profile / Settings ----------------------------------------
-function Profile({go,onSwitchMode,city,onSignOut,userEmail}){
+function Profile({go,onSwitchMode,city,onSignOut,userEmail,userName,onCityChange}){
   const [editing,setEditing]=useState(false);
-  const [name,setName]=useState("Eric");
+  const [name,setName]=useState(userName||"Guest");
   const [bio,setBio]=useState("Living for rooftops and late nights 🌃");
   const [notif,setNotif]=useState(true);
   const [locShare,setLocShare]=useState(true);
   const [haptics,setHaptics]=useState(true);
   const [saved,setSaved]=useState(false);
   const [avatarUrl,setAvatarUrl]=useState(null);
+
+  // Load avatar from profile
+  useEffect(()=>{
+    const sess=getSession();
+    if(sess?.access_token){
+      fetch(SUPA_URL+"/rest/v1/profiles?id=eq."+sess.user.id+"&select=avatar_url",{
+        headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token}
+      }).then(r=>r.json()).then(d=>{
+        if(d?.[0]?.avatar_url) setAvatarUrl(d[0].avatar_url);
+      }).catch(()=>{});
+    }
+  },[]);
   // Social connections - null = not connected, string = connected handle
   const [igConnected,setIgConnected]=useState(null);
   const [twConnected,setTwConnected]=useState(null);
@@ -2697,6 +3069,7 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail}){
   const [twInput,setTwInput]=useState("");
   const [igEditing,setIgEditing]=useState(false);
   const [twEditing,setTwEditing]=useState(false);
+  const [helpOpen,setHelpOpen]=useState(false);
 
   const prefs=[
     {label:"Push notifications",desc:"Booking updates & deals",val:notif,set:setNotif},
@@ -2777,6 +3150,42 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail}){
     </div>
   );
 
+  if(helpOpen) return(
+    <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--bg)"}}>
+      <div style={{padding:"10px 18px 12px",display:"flex",alignItems:"center",gap:10}}>
+        <button onClick={()=>setHelpOpen(false)} className="press"
+          style={{width:32,height:32,borderRadius:9,background:"var(--white)",
+            border:"1px solid var(--line2)",cursor:"pointer",fontSize:16,color:"var(--ink)",
+            display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"var(--ink)"}}>Help & Support</span>
+      </div>
+      <div style={{padding:"8px 18px 60px"}}>
+        {[
+          ["How do I book a table?","Browse venues, pick a table type, select your date and party size, then tap Reserve. You'll get a confirmation code instantly."],
+          ["How do promo codes work?","Enter a code on the booking screen before confirming. The discount is calculated server-side and shown in your order summary."],
+          ["Can I cancel a booking?","Free cancellation up to 48 hours before your event date. After that, cancellation policies vary by venue."],
+          ["How do promoter invite links work?","Promoters share their personal link. When you book through it, they get credit and you may get exclusive perks like priority entry."],
+          ["I'm a promoter — how do I join?","Switch to promoter mode in your profile settings. You'll set up your profile, get your invite links, and start earning 15% commission on bookings."],
+          ["How do I contact support?","Email us at support@luma.vip or DM @luma.rsv on Instagram. We typically respond within a few hours."],
+        ].map(([q,a],i)=>(
+          <div key={i} style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:14,
+            padding:"14px 16px",marginBottom:8}}>
+            <div style={{fontSize:13,fontWeight:700,color:"var(--ink)",fontFamily:"var(--fb)",marginBottom:6}}>{q}</div>
+            <div style={{fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",lineHeight:1.6}}>{a}</div>
+          </div>
+        ))}
+        <div style={{marginTop:14,textAlign:"center"}}>
+          <div style={{fontSize:11,color:"var(--dim)",fontFamily:"var(--fb)",marginBottom:6}}>Need more help?</div>
+          <div onClick={async()=>{await copyToClipboard("support@luma.vip");}}
+            className="press" style={{display:"inline-block",padding:"8px 20px",background:"var(--ink)",
+              color:"white",borderRadius:12,fontSize:12,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>
+            Copy support email
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return(
     <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--bg)"}}>
       {/* Header with Edit toggle */}
@@ -2827,12 +3236,34 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail}){
                 <span style={{fontSize:16}}>📷</span>
                 <span style={{fontSize:7,color:"white",fontFamily:"var(--fb)",fontWeight:700}}>CHANGE</span>
                 <input id="avatar-upload" type="file" accept="image/*" style={{display:"none"}}
-                  onChange={e=>{
+                  onChange={async e=>{
                     const f=e.target.files?.[0];
-                    if(f&&f.size<5*1024*1024){
-                      const r=new FileReader();
-                      r.onload=ev=>setAvatarUrl(ev.target.result);
-                      r.readAsDataURL(f);
+                    if(!f||f.size>5*1024*1024) return;
+                    // Show preview immediately
+                    const r=new FileReader();
+                    r.onload=ev=>setAvatarUrl(ev.target.result);
+                    r.readAsDataURL(f);
+                    // Upload to Supabase Storage
+                    const sess=getSession();
+                    if(sess?.access_token){
+                      const ext=f.name.split(".").pop()||"jpg";
+                      const path="avatars/"+sess.user.id+"."+ext;
+                      try{
+                        await fetch(SUPA_URL+"/storage/v1/object/venue-images/"+path,{
+                          method:"POST",
+                          headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,
+                            "Content-Type":f.type,"x-upsert":"true"},
+                          body:f
+                        });
+                        const pubUrl=SUPA_URL+"/storage/v1/object/public/venue-images/"+path+"?t="+Date.now();
+                        setAvatarUrl(pubUrl);
+                        // Update profile
+                        fetch(SUPA_URL+"/rest/v1/profiles?id=eq."+sess.user.id,{
+                          method:"PATCH",headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,
+                            "Content-Type":"application/json","Prefer":"return=minimal"},
+                          body:JSON.stringify({avatar_url:pubUrl})
+                        }).catch(()=>{});
+                      }catch(err){}
                     }
                   }}/>
               </label>
@@ -2939,13 +3370,17 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail}){
       <div style={{margin:"14px 18px 0"}}>
         <div style={{fontSize:10,fontWeight:700,color:"var(--sub)",letterSpacing:".08em",
           textTransform:"uppercase",fontFamily:"var(--fb)",marginBottom:10}}>City</div>
-        <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:16,padding:"13px 16px",
-          display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div>
-            <div style={{fontSize:13,fontWeight:600,color:"var(--ink)",fontFamily:"var(--fb)"}}>{city==="New York"?"🗽 New York":"🌴 Miami"}</div>
-            <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:1}}>Your primary city</div>
-          </div>
-          <div style={{fontSize:11,color:"var(--dim)",fontFamily:"var(--fb)"}}>›</div>
+        <div style={{display:"flex",gap:8}}>
+          {["Miami","New York"].map(c=>(
+            <div key={c} onClick={()=>onCityChange&&onCityChange(c)} className="press"
+              style={{flex:1,background:city===c?"var(--ink)":"var(--white)",
+                border:"1px solid "+(city===c?"var(--ink)":"var(--line)"),borderRadius:16,padding:"13px 16px",
+                cursor:"pointer",transition:"all .2s",textAlign:"center"}}>
+              <div style={{fontSize:20,marginBottom:4}}>{c==="Miami"?"🌴":"🗽"}</div>
+              <div style={{fontSize:13,fontWeight:600,color:city===c?"white":"var(--ink)",fontFamily:"var(--fb)"}}>{c}</div>
+              {city===c&&<div style={{fontSize:9,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",marginTop:2}}>Current city</div>}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -2956,8 +3391,14 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail}){
         <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:16,overflow:"hidden"}}>
           {[
             ["Become a promoter ->","Switch to promoter dashboard",()=>onSwitchMode("promoter"),false],
-            ["Invite a friend","Share Luma with friends",()=>{},false],
-            ["Help & support","FAQs and contact",()=>{},false],
+            ["Invite a friend","Share Luma with friends",async()=>{
+              const shareData={title:"Luma — VIP Table Booking",text:"Book VIP tables in Miami & NYC in 60 seconds 🔥",url:"https://luma.vip"};
+              if(navigator.share){try{await navigator.share(shareData);}catch(e){}}
+              else{const ok=await copyToClipboard("Book VIP tables with Luma 🔥 https://luma.vip");if(ok)alert("Link copied!");}
+            },false],
+            ["Help & support","FAQs and contact",()=>{
+              setHelpOpen&&setHelpOpen(true);
+            },false],
             ["Sign out","Signed in as "+(userEmail||"guest"),()=>onSignOut&&onSignOut(),true],
           ].map(([label,sub,fn,danger],i,arr)=>(
             <div key={label} onClick={fn} className="press"
@@ -2979,86 +3420,88 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail}){
 
 // ----------------------------------------------- Root -----------------------------------------------------
 
-// AuthGate - sign in / sign up screen
+// AuthGate - landing > sign in / sign up
 function AuthGate({onAuth}) {
-  const [tab,     setTab]     = useState("signin");
-  const [email,   setEmail]   = useState("");
-  const [pw,      setPw]      = useState("");
-  const [name,    setName]    = useState("");
+  const [view, setView] = useState("landing");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [uname, setUname] = useState("");
   const [loading, setLoading] = useState(false);
-  const [err,     setErr]     = useState("");
-  const [info,    setInfo]    = useState("");
+  const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
 
   const submit = async () => {
     setErr(""); setInfo(""); setLoading(true);
     try {
-      if (tab === "signup") {
-        if (!name.trim()) { setErr("Name is required"); setLoading(false); return; }
-        const d = await supaSignUp(email.trim(), pw, name.trim());
-        if (d.error) { setErr(d.error.message || "Signup failed"); }
-        else if (d.access_token) { onAuth(d); }
-        else { setInfo("Check your email to confirm, then sign in."); setTab("signin"); }
+      if (view === "signup") {
+        if (!uname.trim()) { setErr("Name is required"); setLoading(false); return; }
+        if (!email.trim()) { setErr("Email is required"); setLoading(false); return; }
+        const d = await supaSignUp(email.trim(), pw, uname.trim());
+        if (d.error) setErr(d.error.message || "Signup failed");
+        else if (d.access_token) onAuth(d);
+        else { setInfo("Check your email to confirm, then sign in."); setView("signin"); }
       } else {
+        if (!email.trim()) { setErr("Email is required"); setLoading(false); return; }
         const d = await supaSignIn(email.trim(), pw);
-        if (!d.access_token) { setErr(d.error_description || d.error?.message || "Invalid credentials"); }
-        else { onAuth(d); }
+        if (!d.access_token) setErr(d.error_description || d.error?.message || "Invalid credentials");
+        else onAuth(d);
       }
-    } catch(e) { setErr("Network error - check your connection"); }
+    } catch(e) { setErr("Network error"); }
     setLoading(false);
   };
 
+  if (view === "landing") return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 24px",background:"var(--bg)"}}>
+      <div style={{fontFamily:"var(--fd)",fontSize:48,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:4,color:"var(--ink)"}}>Luma</div>
+      <div style={{fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:8,textAlign:"center"}}>Miami . New York . Your night starts here</div>
+      <div style={{fontSize:10,color:"var(--dim)",fontFamily:"var(--fb)",marginBottom:40,textAlign:"center"}}>Book VIP tables at the best venues</div>
+      <div style={{width:"100%",maxWidth:300,display:"flex",flexDirection:"column",gap:10}}>
+        <button onClick={()=>setView("signin")} className="press" style={{padding:"14px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:14,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Sign In</button>
+        <button onClick={()=>setView("signup")} className="press" style={{padding:"14px",background:"var(--white)",color:"var(--ink)",border:"1.5px solid var(--line2)",borderRadius:13,fontSize:14,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Create Account</button>
+        <button onClick={()=>onAuth(null)} className="press" style={{padding:"11px",background:"transparent",border:"none",color:"var(--sub)",borderRadius:13,fontSize:11,fontFamily:"var(--fb)",fontWeight:500,cursor:"pointer",marginTop:4}}>Continue without account</button>
+      </div>
+    </div>
+  );
+
+  // Sign in / sign up form
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
-      justifyContent:"center",padding:"32px 24px",background:"var(--bg)"}}>
-      <div style={{fontFamily:"var(--fd)",fontSize:52,fontWeight:700,fontStyle:"italic",
-        letterSpacing:"-.02em",marginBottom:4,color:"var(--ink)"}}>Luma</div>
-      <div style={{fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:34,textAlign:"center"}}>
-        Miami . New York . Your night starts here
+    <div className="scroll" style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",overflowY:"auto",padding:"32px 24px",background:"var(--bg)"}}>
+      <div onClick={()=>{setView("landing");setErr("");setInfo("");}} className="press" style={{alignSelf:"flex-start",fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4,marginBottom:20,flexShrink:0}}>
+        {"<"} Back
       </div>
-      <div style={{display:"flex",background:"var(--white)",border:"1px solid var(--line)",
-        borderRadius:13,padding:3,marginBottom:22,width:"100%",maxWidth:330}}>
-        {[["signin","Sign In"],["signup","Create Account"]].map(([t,label])=>(
-          <button key={t} onClick={()=>{setTab(t);setErr("");setInfo("");}}
-            style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",cursor:"pointer",
-              fontFamily:"var(--fb)",fontWeight:600,fontSize:12,transition:"all .18s",
-              background:tab===t?"var(--ink)":"transparent",color:tab===t?"white":"var(--sub)"}}>
-            {label}
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",width:"100%",maxWidth:300}}>
+        <div style={{fontFamily:"var(--fd)",fontSize:36,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:4,color:"var(--ink)"}}>{view==="signin"?"Welcome back":"Join Luma"}</div>
+        <div style={{fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:24,textAlign:"center"}}>{view==="signin"?"Sign in to your account":"Create your account"}</div>
+
+        <button className="press" onClick={()=>onAuth(null)} style={{width:"100%",padding:"12px 14px",background:"var(--white)",color:"var(--ink)",border:"1.5px solid var(--line2)",borderRadius:12,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:9}}>
+          Continue with Apple
+        </button>
+        <button className="press" onClick={()=>onAuth(null)} style={{width:"100%",padding:"12px 14px",background:"var(--white)",color:"var(--ink)",border:"1.5px solid var(--line2)",borderRadius:12,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:4}}>
+          Continue with Google
+        </button>
+
+        <div style={{display:"flex",alignItems:"center",gap:12,margin:"12px 0",width:"100%"}}>
+          <div style={{flex:1,height:1,background:"var(--line2)"}}/>
+          <span style={{fontSize:10,color:"var(--dim)",fontFamily:"var(--fb)",fontWeight:500}}>or</span>
+          <div style={{flex:1,height:1,background:"var(--line2)"}}/>
+        </div>
+
+        <div style={{width:"100%",display:"flex",flexDirection:"column",gap:9}}>
+          {view==="signup"&&<input value={uname} onChange={e=>setUname(e.target.value.slice(0,60))} placeholder="Your name" maxLength={60} style={{padding:"12px 14px",borderRadius:12,border:"1.5px solid var(--line2)",background:"var(--white)",fontSize:13,fontFamily:"var(--fb)",outline:"none",color:"var(--ink)"}}/>}
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" style={{padding:"12px 14px",borderRadius:12,border:"1.5px solid var(--line2)",background:"var(--white)",fontSize:13,fontFamily:"var(--fb)",outline:"none",color:"var(--ink)"}}/>
+          <input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="Password" onKeyDown={e=>e.key==="Enter"&&submit()} style={{padding:"12px 14px",borderRadius:12,border:"1.5px solid var(--line2)",background:"var(--white)",fontSize:13,fontFamily:"var(--fb)",outline:"none",color:"var(--ink)"}}/>
+          {err&&<div style={{padding:"9px 12px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,fontSize:12,color:"#dc2626",fontFamily:"var(--fb)"}}>{err}</div>}
+          {info&&<div style={{padding:"9px 12px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,fontSize:12,color:"#16a34a",fontFamily:"var(--fb)"}}>{info}</div>}
+          <button onClick={submit} disabled={loading} style={{padding:"13px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:loading?"not-allowed":"pointer",opacity:loading?0.6:1,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            {loading?"Working...":(view==="signin"?"Sign In":"Create Account")}
           </button>
-        ))}
+          <div style={{textAlign:"center",marginTop:6}}>
+            <span style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)"}}>{view==="signin"?"No account? ":"Have an account? "}</span>
+            <span onClick={()=>{setView(view==="signin"?"signup":"signin");setErr("");setInfo("");}} className="press" style={{fontSize:11,color:"var(--ink)",fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer"}}>{view==="signin"?"Sign Up":"Sign In"}</span>
+          </div>
+        </div>
       </div>
-      <div style={{width:"100%",maxWidth:330,display:"flex",flexDirection:"column",gap:10}}>
-        {tab==="signup"&&(
-          <input value={name} onChange={e=>setName(e.target.value.slice(0,60))}
-            placeholder="Your name" maxLength={60}
-            style={{padding:"12px 14px",borderRadius:12,border:"1.5px solid var(--line2)",
-              background:"var(--white)",fontSize:13,fontFamily:"var(--fb)",outline:"none",color:"var(--ink)"}}/>
-        )}
-        <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
-          placeholder="Email address"
-          style={{padding:"12px 14px",borderRadius:12,border:"1.5px solid var(--line2)",
-            background:"var(--white)",fontSize:13,fontFamily:"var(--fb)",outline:"none",color:"var(--ink)"}}/>
-        <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
-          placeholder="Password" onKeyDown={e=>e.key==="Enter"&&submit()}
-          style={{padding:"12px 14px",borderRadius:12,border:"1.5px solid var(--line2)",
-            background:"var(--white)",fontSize:13,fontFamily:"var(--fb)",outline:"none",color:"var(--ink)"}}/>
-        {err&&<div style={{padding:"9px 12px",background:"#fef2f2",border:"1px solid #fecaca",
-          borderRadius:10,fontSize:12,color:"#dc2626",fontFamily:"var(--fb)"}}>{err}</div>}
-        {info&&<div style={{padding:"9px 12px",background:"#f0fdf4",border:"1px solid #bbf7d0",
-          borderRadius:10,fontSize:12,color:"#16a34a",fontFamily:"var(--fb)"}}>{info}</div>}
-        <button onClick={submit} disabled={loading}
-          style={{padding:"13px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,
-            fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:loading?"not-allowed":"pointer",
-            opacity:loading?.6:1,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-          {loading&&<div style={{width:14,height:14,borderRadius:"50%",
-            border:"2px solid rgba(255,255,255,.3)",borderTopColor:"white",animation:"spin .7s linear infinite"}}/>}
-          {loading?"Working...":tab==="signin"?"Sign In ->":"Create Account ->"}
-        </button>
-        <button onClick={()=>onAuth(null)}
-          style={{padding:"10px",background:"transparent",border:"1.5px solid var(--line2)",
-            color:"var(--sub)",borderRadius:13,fontSize:11,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>
-          Continue without account (demo)
-        </button>
-      </div>
+      <div style={{height:20,flexShrink:0}}/>
     </div>
   );
 }
@@ -3068,15 +3511,44 @@ export default function App(){
   const [guestMode,setGuestMode] = useState(false);
   const [mode,setMode]=useState("guest");
   const [onboarded,setOnboarded]=useState(false);
-  const [city,setCity]=useState("Miami");
+  const [city,_setCity]=useState("Miami");
   const [showProfile,setShowProfile]=useState(false);
+
+  // Persist city to Supabase profile
+  const setCity=(c)=>{
+    _setCity(c);
+    const s=getSession();
+    if(s?.access_token){
+      fetch(SUPA_URL+"/rest/v1/profiles?id=eq."+s.user.id,{
+        method:"PATCH",headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+s.access_token,
+          "Content-Type":"application/json","Prefer":"return=minimal"},
+        body:JSON.stringify({city:c})
+      }).catch(()=>{});
+    }
+  };
+
+  // Load city from profile on session init
+  useEffect(()=>{
+    // Fix page title
+    if(typeof document!=="undefined") document.title="Luma — VIP Table Booking";
+    const s=getSession();
+    if(s?.access_token){
+      fetch(SUPA_URL+"/rest/v1/profiles?id=eq."+s.user.id+"&select=city",{
+        headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+s.access_token}
+      }).then(r=>r.json()).then(d=>{
+        if(d?.[0]?.city) _setCity(d[0].city);
+      }).catch(()=>{});
+    }
+  },[session?.access_token]);
   const [gt,setGt]=useState("home");
   const [pt,setPt]=useState("dashboard");
   const [venue,setVenue]=useState(null);
   const [selPromoter,setSelPromoter]=useState(null);
   const [inviteData,setInviteData]=useState(null); // {promoter, event}
   const [stack,setStack]=useState([]);
+  const [msgTarget,setMsgTarget]=useState(null);
   const pro=mode==="promoter";
+  const userName=session?.user?.user_metadata?.name||session?.user?.email?.split("@")[0]||"Guest";
 
   const VALID_DESTS=new Set(["home","explore","map","promoters","bookings","venue","promoter","invite","profile","back"]);
   const go=(dest,data)=>{
@@ -3118,26 +3590,26 @@ export default function App(){
   const renderScreen=()=>{
     if(!session && !guestMode) return <AuthGate onAuth={(s)=>{ if(s) updateSession(s); setGuestMode(true); }}/>;
     if(!onboarded) return <Onboard onDone={(c,r)=>{setCity(c);if(r==="promoter")setMode("promoter");setOnboarded(true);}}/>;
-    if(showProfile) return <Profile go={go} onSwitchMode={switchMode} city={city} onSignOut={handleSignOut} userEmail={session?.user?.email||session?.email}/>;
+    if(showProfile) return <Profile go={go} onSwitchMode={switchMode} city={city} onSignOut={handleSignOut} userEmail={session?.user?.email||session?.email} userName={userName} onCityChange={setCity}/>;
     if(!pro){
       if(inviteData) return <InviteLanding promoter={inviteData.promoter} event={inviteData.event} go={go} goBack={()=>go("back")} goPromoter={p=>go("promoter",p)}/>;
       if(selPromoter) return <PromoterProfile promoter={selPromoter} goBack={()=>go("back")} goVenue={v=>go("venue",v)} goBookPromoter={(p,ev)=>go("invite",{promoter:p,event:ev})}/>;
       if(venue) return <VenueDetail venue={venue} go={go}/>;
-      if(gt==="home") return <Home go={go} city={city}/>;
+      if(gt==="home") return <Home go={go} city={city} userName={userName}/>;
       if(gt==="explore") return <Explore go={go} city={city}/>;
       if(gt==="map") return <MapScreen go={go} city={city}/>;
       if(gt==="promoters") return <PromotersDir goPromoter={p=>go("promoter",p)}/>;
       if(gt==="bookings") return <Bookings go={go}/>;
-      return <Home go={go}/>;
+      return <Home go={go} userName={userName}/>;
     }
-    if(pt==="dashboard") return <ProDash setTab={setPt}/>;
-    if(pt==="guests")    return <ProGuests/>;
+    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName}/>;
+    if(pt==="guests")    return <ProGuests setTab={setPt} onMessage={(guestName)=>{setMsgTarget(guestName);setPt("messages");}}/>;
     if(pt==="links")     return <ProLinks/>;
     if(pt==="analytics") return <ProAnalytics/>;
     if(pt==="payouts")   return <ProPayouts/>;
-    if(pt==="messages")  return <ProMessages/>;
+    if(pt==="messages")  return <ProMessages initialOpen={msgTarget} onOpened={()=>setMsgTarget(null)}/>;
     if(pt==="pricing")   return <ProPricing/>;
-    return <ProDash setTab={setPt}/>;
+    return <ProDash setTab={setPt} userName={userName}/>;
   };
 
   function GuestTabs(){
@@ -3152,8 +3624,8 @@ export default function App(){
     const noOverlay=!venue&&!selPromoter&&!inviteData;
     return(
       <div className="tabbar" style={{background:"rgba(245,244,240,.97)"}}>
-        {tabs.map(t=>{const a=gt===t.id&&noOverlay;return(
-          <div key={t.id} className="tab press" onClick={()=>{setGt(t.id);setVenue(null);setSelPromoter(null);setInviteData(null);setStack([]);}}>
+        {tabs.map(t=>{const a=t.id==="profile"?showProfile:(gt===t.id&&noOverlay&&!showProfile);return(
+          <div key={t.id} className="tab press" onClick={()=>{if(t.id==="profile"){go("profile");}else{setGt(t.id);setVenue(null);setSelPromoter(null);setInviteData(null);setStack([]);setShowProfile(false);}}}>
             {t.ic(a)}
             <span style={{fontSize:9,fontWeight:a?700:400,color:a?"var(--ink)":"var(--dim)",fontFamily:"var(--fb)"}}>{t.label}</span>
             {a&&<div style={{width:4,height:1.5,borderRadius:2,background:"var(--ink)"}}/>}
@@ -3246,14 +3718,14 @@ export default function App(){
               overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",transition:"background .4s"}}>
               {/* Dynamic island */}
               <div style={{position:"absolute",top:11,left:"50%",transform:"translateX(-50%)",width:112,height:33,background:"#000",borderRadius:20,zIndex:50}}/>
-              <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",borderRadius:50}} key={mode+(pro?pt:gt)+(venue?.id||"")+(selPromoter?.id||"")+(inviteData?.event?.id||"")}>
+              <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                 <SB dark={pro}/>
-                <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                  <div key={pro?pt:gt+(venue?.id||"")+(selPromoter?.id||"")+(showProfile?"p":"")} style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
+                <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}}>
+                  <div className="fade-screen" key={pro?pt:gt+(venue?.id||"")+(selPromoter?.id||"")+(showProfile?"p":"")+(inviteData?.event?.id||"")} style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
                     {renderScreen()}
                   </div>
                 </div>
-                {(!pro&&!venue&&!selPromoter&&!inviteData)||pro?<>{pro?<ProTabs/>:<GuestTabs/>}</>:null}
+                {((!pro&&!venue&&!selPromoter&&!inviteData)||pro)?<>{pro?<ProTabs/>:<GuestTabs/>}</>:null}
               </div>
               {/* Side buttons */}
               <div style={{position:"absolute",left:-3,top:108,width:3,height:26,background:"#2c2c2e",borderRadius:"3px 0 0 3px"}}/>
