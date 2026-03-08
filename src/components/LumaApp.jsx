@@ -385,7 +385,7 @@ function Home({go,city="Miami",userName="Guest"}){
           <div style={{fontFamily:"var(--fd)",fontSize:21,fontWeight:700,color:"white",marginTop:4}}>{hero.name}</div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:3}}>
             <span style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {hero.city} . {hero.distance}</span>
-            <button onClick={()=>go("venue",hero)} className="press" style={{background:"white",border:"none",borderRadius:18,color:"var(--ink)",padding:"6px 13px",fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Reserve -></button>
+            <button onClick={()=>go("venue",hero)} className="press" style={{background:"white",border:"none",borderRadius:18,color:"var(--ink)",padding:"6px 13px",fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Reserve →</button>
           </div>
         </div>
       </div>
@@ -1070,7 +1070,7 @@ function MapScreen({go,city="Miami"}){
               <button onClick={()=>go("venue",sel)} className="press"
                 style={{padding:"7px 14px",background:"var(--ink)",color:"white",border:"none",
                   borderRadius:20,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>
-                Reserve ->
+                Reserve →
               </button>
             </div>
             <button onClick={()=>setSel(null)}
@@ -1147,7 +1147,7 @@ function Bookings({go,refreshKey,localBookings=[]}){
             <button onClick={()=>go("explore")} className="press"
               style={{background:"var(--ink)",color:"white",border:"none",borderRadius:13,
                 padding:"11px 26px",fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>
-              Explore Venues ->
+              Explore Venues →
             </button>
           )}
         </div>
@@ -2088,7 +2088,7 @@ function TableRow({t,onChange}){
               display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:10,color:P.sub,fontFamily:"var(--fb)"}}>Guest pays</span>
               <span style={{fontSize:11,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>
-                ${parsed} min -> you keep ${earn} <span style={{color:"var(--gold)"}}>(15%)</span>
+                ${parsed} min → you keep ${earn} <span style={{color:"var(--gold)"}}>(15%)</span>
               </span>
             </div>
           )}
@@ -2661,7 +2661,7 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
                     </div>
                   </div>
                   <div style={{padding:"10px 13px",display:"flex",gap:8}}>
-                    <button className="press" onClick={()=>goBookPromoter(promoter,ev)} style={{flex:1,padding:"9px",background:"var(--ink)",color:"white",border:"none",borderRadius:11,fontSize:12,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Book with {promoter.name.split(" ")[0]} -></button>
+                    <button className="press" onClick={()=>goBookPromoter(promoter,ev)} style={{flex:1,padding:"9px",background:"var(--ink)",color:"white",border:"none",borderRadius:11,fontSize:12,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Book with {promoter.name.split(" ")[0]} →</button>
                   </div>
                 </div>
               ))}
@@ -2710,7 +2710,7 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
       {/* Sticky CTA */}
       {tab==="events"&&(
         <div style={{padding:"10px 18px 13px",borderTop:"1px solid var(--line)",background:"rgba(245,244,240,.97)",backdropFilter:"blur(20px)",flexShrink:0}}>
-          <button className="press" onClick={()=>setMsgOpen(true)} style={{width:"100%",padding:"12px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Message {promoter.name.split(" ")[0]} for VIP access -></button>
+          <button className="press" onClick={()=>setMsgOpen(true)} style={{width:"100%",padding:"12px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Message {promoter.name.split(" ")[0]} for VIP access →</button>
         </div>
       )}
     </div>
@@ -2771,7 +2771,7 @@ function InviteLanding({promoter,event,go,goBack,goPromoter}){
         </div>
       </div>
       <div style={{padding:"10px 18px 13px",borderTop:"1px solid var(--line)",background:"rgba(245,244,240,.97)",backdropFilter:"blur(20px)",flexShrink:0}}>
-        <button className="press" onClick={()=>{const v=VENUES.find(x=>x.name===event.venue)||VENUES[0];go("venue",v);}} style={{width:"100%",padding:"13px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",marginBottom:6}}>Claim Your Spot -></button>
+        <button className="press" onClick={()=>{const v=VENUES.find(x=>x.name===event.venue)||VENUES[0];go("venue",v);}} style={{width:"100%",padding:"13px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",marginBottom:6}}>Claim Your Spot →</button>
         <div style={{fontSize:9,color:"var(--dim)",textAlign:"center",fontFamily:"var(--fb)"}}>🔒 Perks applied automatically . Free cancellation 48h before</div>
       </div>
     </div>
@@ -3077,7 +3077,7 @@ function Onboard({onDone}){
             background:(isLast?canContinue:canContinueProfile)?btnBg:(dark?"rgba(255,255,255,.1)":"var(--line2)"),
             color:(isLast?canContinue:canContinueProfile)?btnColor:(dark?"rgba(255,255,255,.3)":"var(--dim)"),
             transition:"all .25s",boxShadow:(isLast?canContinue:canContinueProfile)?btnShadow:"none"}}>
-          {isLast?"Let's go ->":"Continue"}
+          {isLast?"Let's go →":"Continue"}
         </button>
         {step>0&&<button onClick={()=>setStep(s2=>s2-1)}
           style={{width:"100%",marginTop:10,padding:"10px",background:"transparent",
@@ -3438,7 +3438,7 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail,userName,onCityChange
           textTransform:"uppercase",fontFamily:"var(--fb)",marginBottom:10}}>Account</div>
         <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:16,overflow:"hidden"}}>
           {[
-            ["Become a promoter ->","Switch to promoter dashboard",()=>onSwitchMode("promoter"),false],
+            ["Become a promoter →","Switch to promoter dashboard",()=>onSwitchMode("promoter"),false],
             ["Invite a friend","Share Luma with friends",async()=>{
               const shareData={title:"Luma — VIP Table Booking",text:"Book VIP tables in Miami & NYC in 60 seconds 🔥",url:"https://luma.vip"};
               if(navigator.share){try{await navigator.share(shareData);}catch(e){}}
