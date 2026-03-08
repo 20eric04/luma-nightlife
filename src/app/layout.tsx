@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: 'Luma — VIP Table Booking | Miami & NYC',
   description: 'Book VIP tables in 60 seconds. Real pricing, verified promoters, no DM negotiations. Miami & New York nightlife.',
   keywords: ['nightlife', 'booking', 'miami', 'new york', 'rooftop', 'vip', 'bottle service', 'promoter', 'club'],
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     title: 'Luma — VIP Tables in 60 Seconds',
     description: 'Book bottle service, rooftops, and nightlife in Miami & NYC. Real pricing. Verified promoters.',
