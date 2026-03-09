@@ -10,6 +10,16 @@ export default function Home() {
   const [city, setCity] = useState("Miami");
   const [role, setRole] = useState("guest");
   const [status, setStatus] = useState("idle");
+  const [refCode, setRefCode] = useState("");
+
+  // Read ?ref= from URL for referral tracking
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) setRefCode(ref);
+    }
+  }, []);
 
   const submit = async () => {
     if (!email || !email.includes("@")) return;
@@ -18,7 +28,7 @@ export default function Home() {
       const r = await fetch(SUPA_URL + "/rest/v1/waitlist", {
         method: "POST",
         headers: { "apikey": SUPA_ANON, "Content-Type": "application/json", "Prefer": "return=minimal" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() || null, city, role })
+        body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() || null, city, role, referral_source: refCode || null })
       });
       if (r.ok || r.status === 201) setStatus("done");
       else if (r.status === 409) setStatus("exists");
@@ -104,6 +114,10 @@ export default function Home() {
                     border:"1px solid rgba(201,168,76,.12)", borderRadius:20, fontSize:11, color:gold, fontWeight:600 }}>{f}</div>
                 ))}
               </div>
+              {refCode&&<div className="fade d3" style={{background:"rgba(201,168,76,.08)",border:"1px solid rgba(201,168,76,.15)",borderRadius:14,padding:"12px 16px",marginBottom:16,textAlign:"center"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#c9a84c"}}>🎁 You were referred!</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:4}}>You and your friend each get $25 off your first booking</div>
+              </div>}
               <div className="fade d4" style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
                 <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"
                   style={{ padding:"14px 16px", background:"rgba(255,255,255,.04)",

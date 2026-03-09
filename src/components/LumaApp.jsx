@@ -312,6 +312,94 @@ function useEvents(metro) {
   return { events, loading };
 }
 
+// Favorites hook
+function useFavorites() {
+  const [favIds, setFavIds] = useState(new Set());
+  useEffect(() => {
+    const sess = getSession();
+    if (!sess?.access_token) return;
+    fetch(SUPA_URL + "/rest/v1/favorites?user_id=eq." + sess.user.id + "&select=venue_id", {
+      headers: { "apikey": SUPA_ANON, "Authorization": "Bearer " + sess.access_token }
+    }).then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setFavIds(new Set(d.map(f => f.venue_id)));
+    }).catch(() => {});
+  }, []);
+  const toggle = async (venueId) => {
+    const sess = getSession();
+    const isFav = favIds.has(venueId);
+    setFavIds(prev => { const n = new Set(prev); isFav ? n.delete(venueId) : n.add(venueId); return n; });
+    if (!sess?.access_token) return;
+    if (isFav) {
+      fetch(SUPA_URL + "/rest/v1/favorites?user_id=eq." + sess.user.id + "&venue_id=eq." + venueId, {
+        method: "DELETE", headers: { "apikey": SUPA_ANON, "Authorization": "Bearer " + sess.access_token }
+      }).catch(() => {});
+    } else {
+      fetch(SUPA_URL + "/rest/v1/favorites", {
+        method: "POST", headers: { "apikey": SUPA_ANON, "Authorization": "Bearer " + sess.access_token, "Content-Type": "application/json", "Prefer": "return=minimal" },
+        body: JSON.stringify({ user_id: sess.user.id, venue_id: venueId })
+      }).catch(() => {});
+    }
+  };
+  return { favIds, toggle, isFav: (id) => favIds.has(id) };
+}
+
+// Geolocation hook
+function useGeo() {
+  const [loc, setLoc] = useState(null);
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {}, { enableHighAccuracy: false, timeout: 5000 }
+      );
+    }
+  }, []);
+  const distanceTo = (lat, lng) => {
+    if (!loc || !lat || !lng) return null;
+    const R = 3959; // miles
+    const dLat = (lat - loc.lat) * Math.PI / 180;
+    const dLng = (lng - loc.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(loc.lat*Math.PI/180) * Math.cos(lat*Math.PI/180) * Math.sin(dLng/2)**2;
+    return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
+  };
+  return { loc, distanceTo };
+}
+
+// Venue photos hook
+function useVenuePhotos(venueId) {
+  const [photos, setPhotos] = useState([]);
+  useEffect(() => {
+    if (!venueId) return;
+    fetch(SUPA_URL + "/rest/v1/venue_photos?venue_id=eq." + venueId + "&order=sort_order.asc&limit=6", {
+      headers: { "apikey": SUPA_ANON }
+    }).then(r => r.json()).then(d => { if (Array.isArray(d)) setPhotos(d); }).catch(() => {});
+  }, [venueId]);
+  return photos;
+}
+
+// Recently viewed (in-memory)
+const _recentlyViewed = [];
+function addRecentlyViewed(venue) {
+  if (!venue?.id) return;
+  const idx = _recentlyViewed.findIndex(v => v.id === venue.id);
+  if (idx >= 0) _recentlyViewed.splice(idx, 1);
+  _recentlyViewed.unshift(venue);
+  if (_recentlyViewed.length > 10) _recentlyViewed.pop();
+}
+
+// CSV export utility
+function exportCSV(data, filename) {
+  if (!data?.length) return;
+  const keys = Object.keys(data[0]);
+  const csv = [keys.join(","), ...data.map(row => keys.map(k => {
+    const v = row[k]; return typeof v === "string" && (v.includes(",") || v.includes('"')) ? '"' + v.replace(/"/g, '""') + '"' : v ?? "";
+  }).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 
 // Dynamic date helpers for mock data
 const _fd=(d)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
@@ -427,6 +515,8 @@ function Home({go,city="Miami",userName="Guest"}){
   const metro=city==="New York"?"New York":"Miami";
   const {venues:allVenues}=useVenues(metro);
   const {events}=useEvents(metro);
+  const {favIds,toggle:toggleFav,isFav}=useFavorites();
+  const {distanceTo}=useGeo();
   const hot=allVenues.filter(v=>v.hot);
   const display=allVenues.length?allVenues:VENUES.filter(v=>v.metro===metro);
   const hotStrip=hot.length?hot:display.slice(0,3);
@@ -525,17 +615,48 @@ function Home({go,city="Miami",userName="Guest"}){
 
       {/* All list */}
       <div style={{padding:"10px 18px 90px"}}>
+        {/* Saved venues */}
+        {favIds.size>0&&(
+          <div style={{marginBottom:14}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"var(--ink)",marginBottom:8}}>❤️ Saved</div>
+            <div className="hscroll" style={{display:"flex",gap:9,overflowX:"auto",scrollbarWidth:"none",marginBottom:8}}>
+              {display.filter(v=>isFav(v.id)).map(v=>(
+                <div key={v.id} className="press" onClick={()=>go("venue",v)} style={{flexShrink:0,width:110,textAlign:"center"}}>
+                  <Img src={v.img} style={{width:56,height:56,borderRadius:14,margin:"0 auto 4px"}} alt={v.name} type={v.type} name={v.name}/>
+                  <div style={{fontSize:10,fontWeight:600,color:"var(--ink)",fontFamily:"var(--fb)"}}>{v.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Recently viewed */}
+        {_recentlyViewed.length>0&&(
+          <div style={{marginBottom:14}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"var(--ink)",marginBottom:8}}>🕐 Recently Viewed</div>
+            <div className="hscroll" style={{display:"flex",gap:9,overflowX:"auto",scrollbarWidth:"none",marginBottom:8}}>
+              {_recentlyViewed.slice(0,5).map(v=>(
+                <div key={v.id} className="press" onClick={()=>go("venue",v)} style={{flexShrink:0,width:110,textAlign:"center"}}>
+                  <Img src={v.img} style={{width:56,height:56,borderRadius:14,margin:"0 auto 4px"}} alt={v.name} type={v.type} name={v.name}/>
+                  <div style={{fontSize:10,fontWeight:600,color:"var(--ink)",fontFamily:"var(--fb)"}}>{v.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{fontFamily:"var(--fd)",fontSize:19,fontWeight:700,color:"var(--ink)",marginBottom:10}}>All Venues</div>
-        {display.map(v=>(
-          <div key={v.id} className="press" onClick={()=>go("venue",v)} style={{display:"flex",gap:12,padding:"10px 12px",background:"var(--white)",border:"1px solid var(--line)",borderRadius:14,marginBottom:8}}>
+        {display.map(v=>{
+          const dist=distanceTo(v.lat,v.lng);
+          return(
+          <div key={v.id} className="press" onClick={()=>{addRecentlyViewed(v);go("venue",v);}} style={{display:"flex",gap:12,padding:"10px 12px",background:"var(--white)",border:"1px solid var(--line)",borderRadius:14,marginBottom:8,position:"relative"}}>
             <Img src={v.img} style={{width:58,height:58,borderRadius:12,flexShrink:0}} alt={v.name} type={v.type} name={v.name}/>
             <div style={{flex:1,minWidth:0,paddingTop:2}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontFamily:"var(--fb)",fontSize:13,fontWeight:700,color:"var(--ink)"}}>{v.name}</span><span style={{fontFamily:"var(--fd)",fontSize:14,fontWeight:700}}>${v.price}+</span></div>
-              <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:4}}>📍 {v.city} . {v.type} . {v.distance}</div>
+              <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:4}}>📍 {v.city} . {v.type} . {dist?dist+" mi":v.distance}</div>
               <Stars r={v.rating}/>
             </div>
-          </div>
-        ))}
+            <button onClick={(e)=>{e.stopPropagation();toggleFav(v.id);}} style={{position:"absolute",top:8,right:8,background:"none",border:"none",fontSize:16,cursor:"pointer",opacity:isFav(v.id)?1:.3,transition:"all .15s"}}>{isFav(v.id)?"❤️":"🤍"}</button>
+          </div>);
+        })}
       </div>
     </div>
   );
@@ -1629,6 +1750,8 @@ function VenueDetail({venue,go,onBooked}){
         </div>
 
         <div style={{padding:"16px 18px 90px"}}>
+          {/* Photo gallery */}
+          <PhotoGallery venueId={venue.id} fallbackImg={venue.img}/>
           {/* Rating & price */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -1732,7 +1855,7 @@ function ProCard({children,style={},onClick}){
   return <div onClick={onClick} className={onClick?"press":""} style={{background:P.bg,border:P.border,borderRadius:16,...style}}>{children}</div>;
 }
 
-function ProDash({setTab,userName="Promoter",proData,onAdmin}){
+function ProDash({setTab,userName="Promoter",proData,onAdmin,onRevenue,onLeaderboard}){
   const [showPaywall,setShowPaywall]=useState(false);
   const guests=proData?.guests||GUESTS;
   const payouts=proData?.payouts||PAYOUTS;
@@ -1790,8 +1913,8 @@ function ProDash({setTab,userName="Promoter",proData,onAdmin}){
         {/* Quick nav */}
         <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"white",marginBottom:9}}>Quick Actions</div>
         <div style={{display:"flex",flexDirection:"column",gap:7,paddingBottom:90}}>
-          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"],["🏢","Manage Venues","Add, edit, hide venues","admin"]].map(([ic,l,s,t])=>(
-            <ProCard key={l} onClick={()=>t==="admin"?(onAdmin&&onAdmin()):setTab(t)} style={{padding:"11px 13px"}}>
+          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"],["🏢","Manage Venues","Add, edit, hide venues","admin"],["📈","Revenue","Monthly earnings chart","revenue"],["🏆","Leaderboard","Top promoters ranking","leaderboard"],["📥","Export CSV","Download booking data","export"]].map(([ic,l,s,t])=>(
+            <ProCard key={l} onClick={()=>t==="admin"?(onAdmin&&onAdmin()):t==="revenue"?(onRevenue&&onRevenue()):t==="leaderboard"?(onLeaderboard&&onLeaderboard()):t==="export"?exportCSV(guests.map(g=>({name:g.name,table:g.table,party:g.party,status:g.status,paid:"$"+g.paid})),"luma-guests.csv"):setTab(t)} style={{padding:"11px 13px"}}>
               <div style={{display:"flex",alignItems:"center",gap:11}}>
                 <span style={{fontSize:18,width:24,textAlign:"center"}}>{ic}</span>
                 <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>{l}</div><div style={{fontSize:10,color:P.sub,fontFamily:"var(--fb)",marginTop:1}}>{s}</div></div>
@@ -3919,12 +4042,127 @@ function NotificationBell({dark}){
   );
 }
 
+// ----------------------------------------------- Photo Gallery ---------------------------------------------
+function PhotoGallery({venueId,fallbackImg}){
+  const photos=useVenuePhotos(venueId);
+  const [sel,setSel]=useState(0);
+  const list=photos.length?photos:[{url:fallbackImg,caption:"Main"}];
+  if(list.length<=1) return null;
+  return(
+    <div style={{marginBottom:14}}>
+      <div className="hscroll" style={{display:"flex",gap:8,overflowX:"auto",scrollbarWidth:"none",marginBottom:6}}>
+        {list.map((p,i)=>(
+          <div key={i} onClick={()=>setSel(i)} className="press" style={{flexShrink:0,width:70,height:70,borderRadius:12,overflow:"hidden",border:sel===i?"2px solid var(--gold)":"2px solid transparent",cursor:"pointer"}}>
+            <Img src={p.url} style={{width:"100%",height:"100%"}} alt={p.caption||"Photo"} type="Photo" name={p.caption||""}/>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",textAlign:"center"}}>{list[sel]?.caption||""} · {sel+1}/{list.length}</div>
+    </div>
+  );
+}
+
+// ----------------------------------------------- Revenue Dashboard -----------------------------------------
+function RevenueDashboard(){
+  const months=["Jan","Feb","Mar","Apr","May","Jun"];
+  const data=[0,450,1200,2800,3400,4100]; // Mock data — replace with real when bookings flow
+  const max=Math.max(...data,1);
+  return(
+    <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
+      <div style={{padding:"4px 18px 90px"}}>
+        <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"white",marginBottom:4}}>Revenue</div>
+        <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginBottom:16}}>Earnings over time</div>
+        {/* Chart */}
+        <ProCard style={{padding:"16px",marginBottom:14}}>
+          <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
+            {data.map((v,i)=>(
+              <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                <div style={{fontSize:9,color:"var(--gold)",fontFamily:"var(--fd)",fontWeight:700}}>${v}</div>
+                <div style={{width:"100%",background:"var(--gold)",borderRadius:6,height:Math.max(4,v/max*100),transition:"height .3s",opacity:i===data.length-1?1:.5}}/>
+                <div style={{fontSize:8,color:P.sub,fontFamily:"var(--fb)"}}>{months[i]}</div>
+              </div>
+            ))}
+          </div>
+        </ProCard>
+        {/* Summary cards */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+          {[["$"+data[data.length-1],"This Month","💰"],["$"+(data.reduce((a,b)=>a+b,0)),"All Time","📈"],["15%","Commission Rate","⚙️"],[data.filter(v=>v>0).length+" mo","Active Months","📅"]].map(([v,l,ic])=>(
+            <ProCard key={l} style={{padding:"12px",textAlign:"center"}}>
+              <div style={{fontSize:16,marginBottom:4}}>{ic}</div>
+              <div style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"white"}}>{v}</div>
+              <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)",marginTop:2}}>{l}</div>
+            </ProCard>
+          ))}
+        </div>
+        {/* Export */}
+        <button className="press" onClick={()=>exportCSV(data.map((v,i)=>({month:months[i],revenue:v})),"luma-revenue.csv")} style={{width:"100%",padding:"11px",background:"rgba(255,255,255,.05)",border:"1.5px solid rgba(255,255,255,.1)",borderRadius:13,fontSize:12,fontFamily:"var(--fb)",fontWeight:600,color:"rgba(255,255,255,.4)",cursor:"pointer"}}>📥 Export Revenue CSV</button>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------- Promoter Leaderboard --------------------------------------
+function ProLeaderboard(){
+  const leaders=[
+    {rank:1,name:"Jordan V.",city:"Miami",bookings:47,earned:"$8,400",av:"J"},
+    {rank:2,name:"Nate S.",city:"Miami",bookings:38,earned:"$6,200",av:"N"},
+    {rank:3,name:"Gabriella N.",city:"NYC",bookings:31,earned:"$5,100",av:"G"},
+    {rank:4,name:"Alex T.",city:"Miami",bookings:24,earned:"$3,800",av:"A"},
+    {rank:5,name:"Priya D.",city:"NYC",bookings:19,earned:"$2,900",av:"P"},
+    {rank:6,name:"Marcus W.",city:"Miami",bookings:15,earned:"$2,100",av:"M"},
+    {rank:7,name:"Serena K.",city:"NYC",bookings:12,earned:"$1,800",av:"S"},
+    {rank:8,name:"Dexter L.",city:"Miami",bookings:8,earned:"$1,200",av:"D"},
+  ];
+  const medals=["🥇","🥈","🥉"];
+  return(
+    <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
+      <div style={{padding:"4px 18px 90px"}}>
+        <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"white",marginBottom:4}}>Leaderboard</div>
+        <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginBottom:16}}>Top promoters this month</div>
+        {/* Top 3 podium */}
+        <div style={{display:"flex",gap:8,marginBottom:16,justifyContent:"center",alignItems:"flex-end"}}>
+          {[leaders[1],leaders[0],leaders[2]].map((l,i)=>{
+            const heights=[90,120,70];
+            const isCenter=i===1;
+            return(
+              <div key={l.rank} style={{flex:1,textAlign:"center"}}>
+                <div style={{fontSize:isCenter?36:24,marginBottom:4}}>{medals[l.rank-1]}</div>
+                <div style={{width:isCenter?52:42,height:isCenter?52:42,borderRadius:"50%",background:isCenter?"var(--gold)":"rgba(255,255,255,.1)",border:isCenter?"3px solid var(--gold)":"2px solid rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:isCenter?18:14,fontWeight:700,color:isCenter?"#0a0a0a":"white",margin:"0 auto 6px",fontFamily:"var(--fd)"}}>{l.av}</div>
+                <div style={{fontSize:11,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{l.name}</div>
+                <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)"}}>{l.earned}</div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Full list */}
+        {leaders.map(l=>(
+          <ProCard key={l.rank} style={{padding:"10px 13px",marginBottom:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:24,fontSize:13,fontWeight:700,color:l.rank<=3?"var(--gold)":"rgba(255,255,255,.3)",fontFamily:"var(--fd)",textAlign:"center"}}>{l.rank<=3?medals[l.rank-1]:"#"+l.rank}</div>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fd)"}}>{l.av}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>{l.name}</div>
+                <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)"}}>{l.city} · {l.bookings} bookings</div>
+              </div>
+              <div style={{fontFamily:"var(--fd)",fontSize:14,fontWeight:700,color:"var(--gold)"}}>{l.earned}</div>
+            </div>
+          </ProCard>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function VenueAdmin({goBack}){
+  const [tab,setAdminTab]=useState("venues"); // venues or events
   const [venues,setVenues]=useState([]);
+  const [events,setEvts]=useState([]);
   const [loading,setLoading]=useState(true);
   const [editing,setEditing]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({name:"",metro:"Miami",type:"Nightclub",city:"",address:"",price_min:100,rating:4.5,about:"",active:true});
+  const [evtForm,setEvtForm]=useState({name:"",venue_id:"",event_date:"",doors_time:"10:00 PM",dj:"",theme:"",description:"",tags:[],featured:false});
+  const [showAddEvt,setShowAddEvt]=useState(false);
   const [saving,setSaving]=useState(false);
   const [msg,setMsg]=useState("");
 
@@ -3932,7 +4170,26 @@ function VenueAdmin({goBack}){
     fetch(SUPA_URL+"/rest/v1/venues?order=metro,name&select=id,name,metro,type,city,price_min,rating,active",{
       headers:{"apikey":SUPA_ANON}
     }).then(r=>r.json()).then(d=>{if(Array.isArray(d))setVenues(d);}).catch(()=>{}).finally(()=>setLoading(false));
+    fetch(SUPA_URL+"/rest/v1/events?order=event_date.desc&limit=20&select=*",{
+      headers:{"apikey":SUPA_ANON}
+    }).then(r=>r.json()).then(d=>{if(Array.isArray(d))setEvts(d);}).catch(()=>{});
   },[]);
+
+  const saveEvent=async()=>{
+    if(!evtForm.name||!evtForm.venue_id||!evtForm.event_date){setMsg("Name, venue, and date required");return;}
+    setSaving(true);setMsg("");
+    const sess=getSession();
+    const headers={"apikey":SUPA_ANON,"Content-Type":"application/json","Prefer":"return=representation"};
+    if(sess?.access_token) headers["Authorization"]="Bearer "+sess.access_token;
+    try{
+      const body={...evtForm,venue_id:parseInt(evtForm.venue_id),active:true};
+      const r=await fetch(SUPA_URL+"/rest/v1/events",{method:"POST",headers,body:JSON.stringify(body)});
+      const d=await r.json();
+      if(Array.isArray(d)&&d[0]){setEvts(prev=>[d[0],...prev]);setShowAddEvt(false);setEvtForm({name:"",venue_id:"",event_date:"",doors_time:"10:00 PM",dj:"",theme:"",description:"",tags:[],featured:false});setMsg("✓ Event created");}
+      else setMsg("Error creating event");
+    }catch(e){setMsg("Error: "+e.message);}
+    setSaving(false);
+  };
 
   const saveVenue=async(v)=>{
     setSaving(true); setMsg("");
@@ -3991,27 +4248,78 @@ function VenueAdmin({goBack}){
     <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
       <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
-        <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Venue Admin</span>
-        <button className="press" onClick={()=>{setShowAdd(true);setEditing(null);}} style={{padding:"6px 14px",background:"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:10,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>+ Add Venue</button>
+        <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Admin</span>
+        {tab==="venues"?
+          <button className="press" onClick={()=>{setShowAdd(true);setEditing(null);}} style={{padding:"6px 14px",background:"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:10,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>+ Venue</button>:
+          <button className="press" onClick={()=>setShowAddEvt(true)} style={{padding:"6px 14px",background:"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:10,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>+ Event</button>
+        }
+      </div>
+      {/* Tabs */}
+      <div style={{display:"flex",gap:6,padding:"0 18px 10px"}}>
+        {[["venues","Venues"],["events","Events"]].map(([id,l])=>(
+          <button key={id} onClick={()=>setAdminTab(id)} className="press" style={{flex:1,padding:"8px",borderRadius:10,border:"1.5px solid",fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer",background:tab===id?"var(--gold)":"transparent",borderColor:tab===id?"var(--gold)":"rgba(255,255,255,.1)",color:tab===id?"#0a0a0a":"rgba(255,255,255,.4)"}}>{l}</button>
+        ))}
       </div>
       {msg&&<div style={{margin:"0 18px 8px",padding:"8px 12px",background:msg.startsWith("✓")?"rgba(74,222,128,.15)":"rgba(239,68,68,.15)",borderRadius:10,fontSize:11,color:msg.startsWith("✓")?"#4ade80":"#f87171",fontFamily:"var(--fb)"}}>{msg}</div>}
       <div className="scroll" style={{flex:1,overflowY:"auto",padding:"0 18px"}}>
-        {showAdd&&<VenueForm data={form} onSave={saveVenue} onCancel={()=>setShowAdd(false)}/>}
-        {loading?<div style={{color:"rgba(255,255,255,.3)",fontFamily:"var(--fb)",fontSize:12,padding:20,textAlign:"center"}}>Loading venues...</div>:
-          venues.map(v=>(
-            editing===v.id?
-              <VenueForm key={v.id} data={v} onSave={saveVenue} onCancel={()=>setEditing(null)}/>:
-              <div key={v.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:12,marginBottom:6}}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:v.active?"#4ade80":"#f87171",flexShrink:0}}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{v.name}</div>
-                  <div style={{fontSize:10,color:"rgba(255,255,255,.35)",fontFamily:"var(--fb)"}}>{v.metro} . {v.type} . ${v.price_min}+</div>
+        {tab==="venues"?(
+          <>
+            {showAdd&&<VenueForm data={form} onSave={saveVenue} onCancel={()=>setShowAdd(false)}/>}
+            {loading?<div style={{color:"rgba(255,255,255,.3)",fontFamily:"var(--fb)",fontSize:12,padding:20,textAlign:"center"}}>Loading venues...</div>:
+              venues.map(v=>(
+                editing===v.id?
+                  <VenueForm key={v.id} data={v} onSave={saveVenue} onCancel={()=>setEditing(null)}/>:
+                  <div key={v.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:12,marginBottom:6}}>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:v.active?"#4ade80":"#f87171",flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{v.name}</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,.35)",fontFamily:"var(--fb)"}}>{v.metro} . {v.type} . ${v.price_min}+</div>
+                    </div>
+                    <button className="press" onClick={()=>setEditing(v.id)} style={{padding:"4px 10px",background:"rgba(255,255,255,.07)",border:"none",borderRadius:8,fontSize:10,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",cursor:"pointer"}}>Edit</button>
+                    <button className="press" onClick={()=>toggleActive(v)} style={{padding:"4px 10px",background:v.active?"rgba(239,68,68,.12)":"rgba(74,222,128,.12)",border:"none",borderRadius:8,fontSize:10,color:v.active?"#f87171":"#4ade80",fontFamily:"var(--fb)",cursor:"pointer"}}>{v.active?"Hide":"Show"}</button>
+                  </div>
+              ))
+            }
+          </>
+        ):(
+          <>
+            {/* Event creation form */}
+            {showAddEvt&&(
+              <div style={{padding:"14px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,marginBottom:10}}>
+                <input value={evtForm.name} onChange={e=>setEvtForm({...evtForm,name:e.target.value})} placeholder="Event name" style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",marginBottom:8,outline:"none"}}/>
+                <select value={evtForm.venue_id} onChange={e=>setEvtForm({...evtForm,venue_id:e.target.value})} style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",marginBottom:8,outline:"none"}}>
+                  <option value="">Select venue</option>
+                  {venues.map(v=><option key={v.id} value={v.id}>{v.name} ({v.metro})</option>)}
+                </select>
+                <div style={{display:"flex",gap:6,marginBottom:8}}>
+                  <input type="date" value={evtForm.event_date} onChange={e=>setEvtForm({...evtForm,event_date:e.target.value})} style={{flex:1,padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
+                  <input value={evtForm.doors_time} onChange={e=>setEvtForm({...evtForm,doors_time:e.target.value})} placeholder="10:00 PM" style={{width:100,padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
                 </div>
-                <button className="press" onClick={()=>setEditing(v.id)} style={{padding:"4px 10px",background:"rgba(255,255,255,.07)",border:"none",borderRadius:8,fontSize:10,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",cursor:"pointer"}}>Edit</button>
-                <button className="press" onClick={()=>toggleActive(v)} style={{padding:"4px 10px",background:v.active?"rgba(239,68,68,.12)":"rgba(74,222,128,.12)",border:"none",borderRadius:8,fontSize:10,color:v.active?"#f87171":"#4ade80",fontFamily:"var(--fb)",cursor:"pointer"}}>{v.active?"Hide":"Show"}</button>
+                <div style={{display:"flex",gap:6,marginBottom:8}}>
+                  <input value={evtForm.dj} onChange={e=>setEvtForm({...evtForm,dj:e.target.value})} placeholder="DJ / Artist" style={{flex:1,padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
+                  <input value={evtForm.theme} onChange={e=>setEvtForm({...evtForm,theme:e.target.value})} placeholder="Theme" style={{flex:1,padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
+                </div>
+                <textarea value={evtForm.description} onChange={e=>setEvtForm({...evtForm,description:e.target.value})} placeholder="Description" rows={2} style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",marginBottom:10,outline:"none",resize:"none"}}/>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={saveEvent} disabled={saving} style={{flex:1,padding:"10px",background:"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:11,fontSize:12,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer",opacity:saving?.6:1}}>{saving?"Creating...":"Create Event"}</button>
+                  <button onClick={()=>setShowAddEvt(false)} style={{padding:"10px 16px",background:"rgba(255,255,255,.07)",color:"rgba(255,255,255,.5)",border:"none",borderRadius:11,fontSize:12,fontFamily:"var(--fb)",cursor:"pointer"}}>Cancel</button>
+                </div>
               </div>
-          ))
-        }
+            )}
+            {/* Event list */}
+            {events.map(ev=>(
+              <div key={ev.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:12,marginBottom:6}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:ev.active?"#4ade80":"#f87171",flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{ev.name}</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.35)",fontFamily:"var(--fb)"}}>{ev.event_date} . {ev.doors_time}{ev.dj?" . 🎧 "+ev.dj:""}</div>
+                </div>
+                <div style={{fontSize:9,color:ev.featured?"var(--gold)":"rgba(255,255,255,.2)",fontFamily:"var(--fb)"}}>{ev.featured?"⭐ Featured":"—"}</div>
+              </div>
+            ))}
+            {events.length===0&&<div style={{color:"rgba(255,255,255,.3)",fontFamily:"var(--fb)",fontSize:12,padding:20,textAlign:"center"}}>No events yet. Create your first one.</div>}
+          </>
+        )}
         <div style={{height:40}}/>
       </div>
     </div>
@@ -4062,6 +4370,8 @@ export default function App(){
   const [stack,setStack]=useState([]);
   const [msgTarget,setMsgTarget]=useState(null);
   const [showAdmin,setShowAdmin]=useState(false);
+  const [showRevenue,setShowRevenue]=useState(false);
+  const [showLeaderboard,setShowLeaderboard]=useState(false);
   const [pwaPrompt,setPwaPrompt]=useState(null);
   const [showPwaBanner,setShowPwaBanner]=useState(false);
 
@@ -4110,7 +4420,7 @@ export default function App(){
     setOnboarded(false);
     setVenue(null); setSelPromoter(null); setInviteData(null); setStack([]);
   };
-  const switchMode=(m)=>{setMode(m);setVenue(null);setSelPromoter(null);setInviteData(null);setStack([]);setShowProfile(false);setGt("home");setPt("dashboard");};
+  const switchMode=(m)=>{setMode(m);setVenue(null);setSelPromoter(null);setInviteData(null);setStack([]);setShowProfile(false);setGt("home");setPt("dashboard");setShowAdmin(false);setShowRevenue(false);setShowLeaderboard(false);};
 
   const activeScreen=inviteData?"Invite Landing":selPromoter?"Promoter Profile":venue?"Venue Detail":null;
   const label=activeScreen||(pro?{dashboard:"Dashboard",guests:"Guest List",links:"Invite Links",analytics:"Analytics",payouts:"Payouts",messages:"Messages",pricing:"Pricing"}[pt]:{home:"Home",explore:"Explore",map:"Map",promoters:"Promoters",bookings:"My Bookings"}[gt]);
@@ -4135,14 +4445,16 @@ export default function App(){
       return <Home go={go} userName={userName}/>;
     }
     if(showAdmin) return <VenueAdmin goBack={()=>setShowAdmin(false)}/>;
-    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)}/>;
+    if(showRevenue) return <RevenueDashboard/>;
+    if(showLeaderboard) return <ProLeaderboard/>;
+    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)} onRevenue={()=>setShowRevenue(true)} onLeaderboard={()=>setShowLeaderboard(true)}/>;
     if(pt==="guests")    return <ProGuests setTab={setPt} onMessage={(guestName)=>{setMsgTarget(guestName);setPt("messages");}}/>;
     if(pt==="links")     return <ProLinks/>;
     if(pt==="analytics") return <ProAnalytics/>;
     if(pt==="payouts")   return <ProPayouts/>;
     if(pt==="messages")  return <ProMessages initialOpen={msgTarget} onOpened={()=>setMsgTarget(null)}/>;
     if(pt==="pricing")   return <ProPricing/>;
-    return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)}/>;
+    return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)} onRevenue={()=>setShowRevenue(true)} onLeaderboard={()=>setShowLeaderboard(true)}/>;
   };
 
   function GuestTabs(){
@@ -4180,7 +4492,7 @@ export default function App(){
     return(
       <div className="tabbar" style={{background:"rgba(18,18,30,.97)",borderTopColor:"rgba(255,255,255,.07)"}}>
         {tabs.map(t=>{const a=pt===t.id;return(
-          <div key={t.id} className="tab press" onClick={()=>setPt(t.id)}>
+          <div key={t.id} className="tab press" onClick={()=>{setPt(t.id);setShowAdmin(false);setShowRevenue(false);setShowLeaderboard(false);}}>
             {t.ic(a)}
             <span style={{fontSize:9,fontWeight:a?700:400,color:a?"var(--gold)":"rgba(255,255,255,.28)",fontFamily:"var(--fb)"}}>{t.label}</span>
             {a&&<div style={{width:4,height:1.5,borderRadius:2,background:"var(--gold)"}}/>}
