@@ -169,8 +169,9 @@ export default function Home() {
           )}
           <div style={{ marginTop:60, paddingTop:20, borderTop:"1px solid rgba(255,255,255,.04)",
             display:"flex", justifyContent:"space-between" }}>
-            <span style={{ fontSize:10, color:"rgba(255,255,255,.15)" }}>© 2025 Luma · lumarsv.com</span>
+            <span style={{ fontSize:10, color:"rgba(255,255,255,.15)" }}>© 2026 Luma · lumarsv.com</span>
             <div style={{ display:"flex", gap:12 }}>
+              <a href="/blog" style={{ fontSize:10, color:"rgba(255,255,255,.15)", textDecoration:"none" }}>Blog</a>
               <a href="/terms" style={{ fontSize:10, color:"rgba(255,255,255,.15)", textDecoration:"none" }}>Terms</a>
               <a href="/privacy" style={{ fontSize:10, color:"rgba(255,255,255,.15)", textDecoration:"none" }}>Privacy</a>
             </div>
