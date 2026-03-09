@@ -1336,6 +1336,7 @@ function MapScreen({go,city="Miami"}){
 }
 
 function Bookings({go,refreshKey,localBookings=[]}){
+  const [qrBooking,setQrBooking]=useState(null);
   const [tab,setTab]=useState("upcoming");
   const {bookings:dbBk,loading}=useUserBookings(refreshKey);
   const bk=[...localBookings,...dbBk];
@@ -1343,6 +1344,7 @@ function Bookings({go,refreshKey,localBookings=[]}){
     ?bk.filter(b=>b.status==="confirmed"||b.status==="pending")
     :bk.filter(b=>b.status==="cancelled"||b.status==="checked_in");
   return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",position:"relative",overflow:"hidden"}}>
     <div className="scroll su" style={{flex:1,overflowY:"auto",background:"var(--bg)",padding:"4px 18px"}}>
       <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"var(--ink)",marginBottom:13}}>Bookings</div>
       <div style={{display:"flex",background:"var(--white)",border:"1px solid var(--line)",borderRadius:13,padding:3,marginBottom:15}}>
@@ -1376,10 +1378,25 @@ function Bookings({go,refreshKey,localBookings=[]}){
         {list.map(b=>(
           <div key={b.id} style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:16,overflow:"hidden",marginBottom:10}}>
             <div style={{position:"relative",height:115}}><Img src={b.img} style={{position:"absolute",inset:0}} alt={b.venue} type="Rooftop" name={b.venue}/><div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.6),transparent 55%)"}}/><div style={{position:"absolute",top:9,right:10}}><span style={{background:"var(--ink)",color:"white",fontSize:9,fontWeight:700,padding:"2px 9px",borderRadius:18,fontFamily:"var(--fb)"}}>✓ Confirmed</span></div><div style={{position:"absolute",bottom:0,left:14,paddingBottom:10}}><div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"white"}}>{b.venue}</div></div></div>
-            <div style={{padding:"11px 14px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}><div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)"}}>📅 {b.date} . {b.table}</div><div style={{background:"#f5f4f0",border:"1px solid var(--line)",borderRadius:9,padding:"5px 10px",textAlign:"center"}}><div style={{fontSize:7,color:"var(--sub)",letterSpacing:".1em",textTransform:"uppercase",fontFamily:"var(--fb)"}}>Code</div><div style={{fontFamily:"var(--fd)",fontSize:13,fontWeight:700,letterSpacing:".06em"}}>{b.code}</div></div></div><button style={{width:"100%",padding:"9px",background:"var(--ink)",color:"white",border:"none",borderRadius:11,fontSize:12,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>View QR Code</button></div>
+            <div style={{padding:"11px 14px"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}><div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)"}}>📅 {b.date} . {b.table}</div><div style={{background:"#f5f4f0",border:"1px solid var(--line)",borderRadius:9,padding:"5px 10px",textAlign:"center"}}><div style={{fontSize:7,color:"var(--sub)",letterSpacing:".1em",textTransform:"uppercase",fontFamily:"var(--fb)"}}>Code</div><div style={{fontFamily:"var(--fd)",fontSize:13,fontWeight:700,letterSpacing:".06em"}}>{b.code}</div></div></div><button onClick={()=>setQrBooking(b)} style={{width:"100%",padding:"9px",background:"var(--ink)",color:"white",border:"none",borderRadius:11,fontSize:12,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>View QR Code</button></div>
           </div>
         ))}
       </div>}
+      {/* QR Modal */}
+      {qrBooking&&(
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",backdropFilter:"blur(8px)",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,animation:"fadeIn .2s ease"}}>
+          <div style={{background:"white",borderRadius:22,padding:22,marginBottom:16,boxShadow:"0 12px 48px rgba(0,0,0,.3)"}}>
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrBooking.code)}&margin=8&color=0a0a0a`} alt="QR" width={200} height={200} style={{display:"block"}}/>
+          </div>
+          <div style={{fontFamily:"var(--fd)",fontSize:22,fontWeight:700,color:"white",marginBottom:4}}>{qrBooking.venue}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",marginBottom:4}}>{qrBooking.date} . {qrBooking.table}</div>
+          <div style={{background:"rgba(255,255,255,.1)",borderRadius:10,padding:"6px 16px",marginBottom:20}}>
+            <span style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"white",letterSpacing:".08em"}}>{qrBooking.code}</span>
+          </div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,.3)",fontFamily:"var(--fb)",marginBottom:20,textAlign:"center"}}>Show this QR code at the venue entrance</div>
+          <button onClick={()=>setQrBooking(null)} className="press" style={{padding:"12px 32px",background:"white",color:"var(--ink)",border:"none",borderRadius:14,fontSize:13,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Close</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1913,8 +1930,14 @@ function ProDash({setTab,userName="Promoter",proData,onAdmin,onRevenue,onLeaderb
         {/* Quick nav */}
         <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"white",marginBottom:9}}>Quick Actions</div>
         <div style={{display:"flex",flexDirection:"column",gap:7,paddingBottom:90}}>
-          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"],["🏢","Manage Venues","Add, edit, hide venues","admin"],["📈","Revenue","Monthly earnings chart","revenue"],["🏆","Leaderboard","Top promoters ranking","leaderboard"],["📥","Export CSV","Download booking data","export"]].map(([ic,l,s,t])=>(
-            <ProCard key={l} onClick={()=>t==="admin"?(onAdmin&&onAdmin()):t==="revenue"?(onRevenue&&onRevenue()):t==="leaderboard"?(onLeaderboard&&onLeaderboard()):t==="export"?exportCSV(guests.map(g=>({name:g.name,table:g.table,party:g.party,status:g.status,paid:"$"+g.paid})),"luma-guests.csv"):setTab(t)} style={{padding:"11px 13px"}}>
+          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"],["🏢","Manage Venues","Add + edit venues & events","admin"],["📈","Revenue","Charts, breakdown, export","revenue"],["🏆","Leaderboard","Rankings, profiles, socials","leaderboard"],["📥","Export CSV","Download guest & booking data","export"]].map(([ic,l,s,t])=>(
+            <ProCard key={l} onClick={()=>{
+              if(t==="admin")onAdmin&&onAdmin();
+              else if(t==="revenue")onRevenue&&onRevenue();
+              else if(t==="leaderboard")onLeaderboard&&onLeaderboard();
+              else if(t==="export"){exportCSV(guests.map(g=>({name:g.name,table:g.table,party:g.party,status:g.status,paid:"$"+g.paid})),"luma-guests.csv");alert("CSV downloaded!");}
+              else setTab(t);
+            }} style={{padding:"11px 13px"}}>
               <div style={{display:"flex",alignItems:"center",gap:11}}>
                 <span style={{fontSize:18,width:24,textAlign:"center"}}>{ic}</span>
                 <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>{l}</div><div style={{fontSize:10,color:P.sub,fontFamily:"var(--fb)",marginTop:1}}>{s}</div></div>
@@ -2077,8 +2100,12 @@ function ProLinks(){
                       color:"var(--gold)",borderRadius:9,fontSize:11,fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer"}}>
                     QR
                   </button>
-                  <button className="press" onClick={()=>copy(l.id,l.url)} style={{flex:1,padding:"8px",background:copyErr===l.id?"#ef4444":"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:9,fontSize:11,fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer",transition:"background .2s"}}>{copied===l.id?"✓ Copied!":copyErr===l.id?"Failed":"📋 Copy"}</button>
-                  <button className="press" style={{flex:1,padding:"8px",background:"transparent",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.5)",borderRadius:9,fontSize:11,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>↗ Share</button>
+                  <button className="press" onClick={()=>copy(l.id,"https://"+l.url)} style={{flex:1,padding:"8px",background:copyErr===l.id?"#ef4444":"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:9,fontSize:11,fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer",transition:"background .2s"}}>{copied===l.id?"✓ Copied!":copyErr===l.id?"Failed":"📋 Copy"}</button>
+                  <button className="press" onClick={async()=>{
+                    const url="https://"+l.url;
+                    if(navigator.share){try{await navigator.share({title:l.label,text:"Book through my link",url});}catch(e){}}
+                    else{const ok=await copyToClipboard(url);if(ok)setCopied(l.id);else setCopyErr(l.id);setTimeout(()=>{setCopied(null);setCopyErr(null);},2000);}
+                  }} style={{flex:1,padding:"8px",background:"transparent",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.5)",borderRadius:9,fontSize:11,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>↗ Share</button>
                 </div>
               </ProCard>
             );
@@ -3687,9 +3714,11 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail,userName,onCityChange
           {[
             ["Become a promoter →","Switch to promoter dashboard",()=>onSwitchMode("promoter"),false],
             ["Invite a friend","Share Luma with friends",async()=>{
-              const shareData={title:"Luma — VIP Table Booking",text:"Book VIP tables in Miami & NYC in 60 seconds 🔥",url:"https://lumarsv.com"};
-              if(navigator.share){try{await navigator.share(shareData);}catch(e){}}
-              else{const ok=await copyToClipboard("Book VIP tables with Luma 🔥 https://lumarsv.com");if(ok)alert("Link copied!");}
+              const text="Book VIP tables in Miami & NYC in 60 seconds 🔥 https://lumarsv.com";
+              if(navigator.share){try{await navigator.share({title:"Luma",text,url:"https://lumarsv.com"});return;}catch(e){}}
+              const ok=await copyToClipboard(text);
+              if(ok){alert("Link copied to clipboard!");}
+              else{try{window.prompt("Copy this link:",text);}catch(e){}}
             },false],
             ["Help & support","FAQs and contact",()=>{
               setHelpOpen&&setHelpOpen(true);
@@ -4063,17 +4092,24 @@ function PhotoGallery({venueId,fallbackImg}){
 }
 
 // ----------------------------------------------- Revenue Dashboard -----------------------------------------
-function RevenueDashboard(){
+function RevenueDashboard({goBack}){
   const months=["Jan","Feb","Mar","Apr","May","Jun"];
-  const data=[0,450,1200,2800,3400,4100]; // Mock data — replace with real when bookings flow
+  const data=[0,450,1200,2800,3400,4100];
   const max=Math.max(...data,1);
+  const total=data.reduce((a,b)=>a+b,0);
+  const growth=data[5]>data[4]?Math.round((data[5]-data[4])/Math.max(data[4],1)*100):0;
+  const avgPerBooking=Math.round(total/Math.max(data.filter(v=>v>0).length*8,1));
   return(
-    <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
-      <div style={{padding:"4px 18px 90px"}}>
-        <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"white",marginBottom:4}}>Revenue</div>
-        <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginBottom:16}}>Earnings over time</div>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+      <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Revenue</span>
+      </div>
+      <div className="scroll" style={{flex:1,overflowY:"auto",padding:"0 18px"}}>
+        <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginBottom:16}}>Your earnings from promoter commissions (15% per booking)</div>
         {/* Chart */}
         <ProCard style={{padding:"16px",marginBottom:14}}>
+          <div style={{fontSize:10,color:P.sub,fontFamily:"var(--fb)",marginBottom:10}}>Monthly Commission Revenue</div>
           <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
             {data.map((v,i)=>(
               <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
@@ -4084,40 +4120,104 @@ function RevenueDashboard(){
             ))}
           </div>
         </ProCard>
-        {/* Summary cards */}
+        {/* Key metrics */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-          {[["$"+data[data.length-1],"This Month","💰"],["$"+(data.reduce((a,b)=>a+b,0)),"All Time","📈"],["15%","Commission Rate","⚙️"],[data.filter(v=>v>0).length+" mo","Active Months","📅"]].map(([v,l,ic])=>(
+          {[["$"+data[data.length-1],"This Month","💰","Your earnings for "+months[data.length-1]],["$"+total,"All Time","📈","Total since you started"],[""+growth+"%","Growth","🚀","vs last month"],[avgPerBooking>0?"$"+avgPerBooking:"—","Avg/Booking","🎯","Your average commission"]].map(([v,l,ic,detail])=>(
             <ProCard key={l} style={{padding:"12px",textAlign:"center"}}>
               <div style={{fontSize:16,marginBottom:4}}>{ic}</div>
               <div style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"white"}}>{v}</div>
               <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)",marginTop:2}}>{l}</div>
+              <div style={{fontSize:8,color:"rgba(255,255,255,.2)",fontFamily:"var(--fb)",marginTop:3}}>{detail}</div>
             </ProCard>
           ))}
         </div>
+        {/* Breakdown */}
+        <ProCard style={{padding:"14px",marginBottom:14}}>
+          <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)",marginBottom:10}}>How It Works</div>
+          {[["Guest books through your link","Booking total: e.g. $500"],["Platform takes 10% fee","Platform fee: $50"],["You earn 15% commission","Your cut: $75"],["Payout hits your Stripe","Same-day transfer"]].map(([step,detail],i)=>(
+            <div key={i} style={{display:"flex",gap:10,marginBottom:8,alignItems:"flex-start"}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:"rgba(201,168,76,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"var(--gold)",flexShrink:0}}>{i+1}</div>
+              <div><div style={{fontSize:11,color:"white",fontFamily:"var(--fb)",fontWeight:600}}>{step}</div><div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)"}}>{detail}</div></div>
+            </div>
+          ))}
+        </ProCard>
         {/* Export */}
-        <button className="press" onClick={()=>exportCSV(data.map((v,i)=>({month:months[i],revenue:v})),"luma-revenue.csv")} style={{width:"100%",padding:"11px",background:"rgba(255,255,255,.05)",border:"1.5px solid rgba(255,255,255,.1)",borderRadius:13,fontSize:12,fontFamily:"var(--fb)",fontWeight:600,color:"rgba(255,255,255,.4)",cursor:"pointer"}}>📥 Export Revenue CSV</button>
+        <button className="press" onClick={()=>{exportCSV(data.map((v,i)=>({month:months[i],revenue:v,cumulative:data.slice(0,i+1).reduce((a,b)=>a+b,0)})),"luma-revenue.csv");}} style={{width:"100%",padding:"11px",background:"rgba(255,255,255,.05)",border:"1.5px solid rgba(255,255,255,.1)",borderRadius:13,fontSize:12,fontFamily:"var(--fb)",fontWeight:600,color:"rgba(255,255,255,.4)",cursor:"pointer",marginBottom:40}}>📥 Export Revenue CSV</button>
       </div>
     </div>
   );
 }
 
 // ----------------------------------------------- Promoter Leaderboard --------------------------------------
-function ProLeaderboard(){
+function ProLeaderboard({goBack}){
+  const [selPromo,setSelPromo]=useState(null);
   const leaders=[
-    {rank:1,name:"Jordan V.",city:"Miami",bookings:47,earned:"$8,400",av:"J"},
-    {rank:2,name:"Nate S.",city:"Miami",bookings:38,earned:"$6,200",av:"N"},
-    {rank:3,name:"Gabriella N.",city:"NYC",bookings:31,earned:"$5,100",av:"G"},
-    {rank:4,name:"Alex T.",city:"Miami",bookings:24,earned:"$3,800",av:"A"},
-    {rank:5,name:"Priya D.",city:"NYC",bookings:19,earned:"$2,900",av:"P"},
-    {rank:6,name:"Marcus W.",city:"Miami",bookings:15,earned:"$2,100",av:"M"},
-    {rank:7,name:"Serena K.",city:"NYC",bookings:12,earned:"$1,800",av:"S"},
-    {rank:8,name:"Dexter L.",city:"Miami",bookings:8,earned:"$1,200",av:"D"},
+    {rank:1,name:"Jordan V.",city:"Miami",bookings:47,earned:"$8,400",av:"J",handle:"@jordan.vip",ig:"jordanvip_mia",tw:"jordanvmia",bio:"South Beach VIP specialist. 3 years running Miami's best tables.",specialties:["Rooftop","Nightclub","Bottle Service"]},
+    {rank:2,name:"Nate S.",city:"Miami",bookings:38,earned:"$6,200",av:"N",handle:"@nate.nights",ig:"natesamuels",tw:"natesamuels",bio:"Your connect to everything LIV, E11EVEN, Story.",specialties:["Nightclub","EDM","VIP"]},
+    {rank:3,name:"Gabriella N.",city:"NYC",bookings:31,earned:"$5,100",av:"G",handle:"@gab.nyc",ig:"gabriella.nazz",tw:"gabnazz",bio:"NYC nightlife curator. Chelsea to Brooklyn.",specialties:["Lounge","Rooftop","Hip-Hop"]},
+    {rank:4,name:"Alex T.",city:"Miami",bookings:24,earned:"$3,800",av:"A",handle:"@alex.tables",ig:"alextables",tw:null,bio:"Pool parties and day clubs.",specialties:["Pool Party","Day Party"]},
+    {rank:5,name:"Priya D.",city:"NYC",bookings:19,earned:"$2,900",av:"P",handle:"@priya.d",ig:"priyadnyc",tw:"priyadnyc",bio:"Bringing the energy to NYC weekends.",specialties:["Nightclub","EDM"]},
+    {rank:6,name:"Marcus W.",city:"Miami",bookings:15,earned:"$2,100",av:"M",handle:"@marcus.w",ig:"marcuswmia",tw:null,bio:"Wynwood and Brickell specialist.",specialties:["Lounge","Latin Nights"]},
+    {rank:7,name:"Serena K.",city:"NYC",bookings:12,earned:"$1,800",av:"S",handle:"@serena.k",ig:"serenaknyc",tw:null,bio:"Exclusive access to Manhattan's best.",specialties:["Rooftop","VIP"]},
+    {rank:8,name:"Dexter L.",city:"Miami",bookings:8,earned:"$1,200",av:"D",handle:"@dex.nights",ig:"dexnights",tw:null,bio:"New to the game, rising fast.",specialties:["Nightclub"]},
   ];
   const medals=["🥇","🥈","🥉"];
+  
+  if(selPromo) return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+      <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button className="press" onClick={()=>setSelPromo(null)} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <span style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"white"}}>{selPromo.name}</span>
+      </div>
+      <div className="scroll" style={{flex:1,overflowY:"auto",padding:"0 18px"}}>
+        <div style={{textAlign:"center",padding:"20px 0"}}>
+          <div style={{width:72,height:72,borderRadius:"50%",background:selPromo.rank<=3?"var(--gold)":"rgba(255,255,255,.1)",border:selPromo.rank<=3?"3px solid var(--gold)":"2px solid rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:selPromo.rank<=3?"#0a0a0a":"white",margin:"0 auto 10px",fontFamily:"var(--fd)"}}>{selPromo.av}</div>
+          <div style={{fontSize:18,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{selPromo.name}</div>
+          <div style={{fontSize:12,color:"var(--gold)",fontFamily:"var(--fb)",marginTop:2}}>{selPromo.handle} · {selPromo.rank<=3?medals[selPromo.rank-1]:""} #{selPromo.rank}</div>
+          <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginTop:6,lineHeight:1.5}}>{selPromo.bio}</div>
+        </div>
+        {/* Stats */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+          {[[selPromo.bookings,"Bookings","🎟"],[selPromo.earned,"Earned","💰"],[selPromo.city,"City","📍"],["⭐ Top "+selPromo.rank,"Rank","🏆"]].map(([v,l,ic])=>(
+            <ProCard key={l} style={{padding:"12px",textAlign:"center"}}>
+              <div style={{fontSize:14,marginBottom:3}}>{ic}</div>
+              <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"white"}}>{v}</div>
+              <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)"}}>{l}</div>
+            </ProCard>
+          ))}
+        </div>
+        {/* Specialties */}
+        <ProCard style={{padding:"12px 14px",marginBottom:12}}>
+          <div style={{fontSize:10,color:P.sub,fontWeight:600,fontFamily:"var(--fb)",marginBottom:8}}>SPECIALTIES</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {selPromo.specialties.map(s=><span key={s} style={{padding:"4px 12px",background:"rgba(201,168,76,.1)",border:"1px solid rgba(201,168,76,.2)",borderRadius:14,fontSize:10,fontWeight:600,color:"var(--gold)",fontFamily:"var(--fb)"}}>{s}</span>)}
+          </div>
+        </ProCard>
+        {/* Socials */}
+        <ProCard style={{padding:"12px 14px",marginBottom:40}}>
+          <div style={{fontSize:10,color:P.sub,fontWeight:600,fontFamily:"var(--fb)",marginBottom:8}}>SOCIALS</div>
+          {selPromo.ig&&<div onClick={()=>window.open("https://instagram.com/"+selPromo.ig,"_blank")} className="press" style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,.05)",cursor:"pointer"}}>
+            <span style={{fontSize:16}}>📸</span>
+            <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>Instagram</div><div style={{fontSize:10,color:P.sub,fontFamily:"var(--fb)"}}>@{selPromo.ig}</div></div>
+            <span style={{fontSize:11,color:"rgba(255,255,255,.2)"}}>↗</span>
+          </div>}
+          {selPromo.tw&&<div onClick={()=>window.open("https://x.com/"+selPromo.tw,"_blank")} className="press" style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",cursor:"pointer"}}>
+            <span style={{fontSize:16}}>𝕏</span>
+            <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>X / Twitter</div><div style={{fontSize:10,color:P.sub,fontFamily:"var(--fb)"}}>@{selPromo.tw}</div></div>
+            <span style={{fontSize:11,color:"rgba(255,255,255,.2)"}}>↗</span>
+          </div>}
+        </ProCard>
+      </div>
+    </div>
+  );
+  
   return(
-    <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--pro)"}}>
-      <div style={{padding:"4px 18px 90px"}}>
-        <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"white",marginBottom:4}}>Leaderboard</div>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+      <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Leaderboard</span>
+      </div>
+      <div className="scroll" style={{flex:1,overflowY:"auto",padding:"0 18px"}}>
         <div style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)",marginBottom:16}}>Top promoters this month</div>
         {/* Top 3 podium */}
         <div style={{display:"flex",gap:8,marginBottom:16,justifyContent:"center",alignItems:"flex-end"}}>
@@ -4136,7 +4236,7 @@ function ProLeaderboard(){
         </div>
         {/* Full list */}
         {leaders.map(l=>(
-          <ProCard key={l.rank} style={{padding:"10px 13px",marginBottom:6}}>
+          <ProCard key={l.rank} onClick={()=>setSelPromo(l)} style={{padding:"10px 13px",marginBottom:6,cursor:"pointer"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:24,fontSize:13,fontWeight:700,color:l.rank<=3?"var(--gold)":"rgba(255,255,255,.3)",fontFamily:"var(--fd)",textAlign:"center"}}>{l.rank<=3?medals[l.rank-1]:"#"+l.rank}</div>
               <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fd)"}}>{l.av}</div>
@@ -4445,8 +4545,8 @@ export default function App(){
       return <Home go={go} userName={userName}/>;
     }
     if(showAdmin) return <VenueAdmin goBack={()=>setShowAdmin(false)}/>;
-    if(showRevenue) return <RevenueDashboard/>;
-    if(showLeaderboard) return <ProLeaderboard/>;
+    if(showRevenue) return <RevenueDashboard goBack={()=>setShowRevenue(false)}/>;
+    if(showLeaderboard) return <ProLeaderboard goBack={()=>setShowLeaderboard(false)}/>;
     if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)} onRevenue={()=>setShowRevenue(true)} onLeaderboard={()=>setShowLeaderboard(true)}/>;
     if(pt==="guests")    return <ProGuests setTab={setPt} onMessage={(guestName)=>{setMsgTarget(guestName);setPt("messages");}}/>;
     if(pt==="links")     return <ProLinks/>;
