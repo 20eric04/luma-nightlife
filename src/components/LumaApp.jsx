@@ -297,10 +297,14 @@ function useEvents(metro) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetch(SUPA_URL + "/rest/v1/events?active=eq.true&event_date=gte." + new Date().toISOString().slice(0,10) + "&order=event_date.asc&limit=8" + (metro ? "&venue_id=in.(" + "SELECT id FROM venues WHERE metro='" + metro + "')" : ""), {
+    const today = new Date().toISOString().slice(0,10);
+    fetch(SUPA_URL + "/rest/v1/events?active=eq.true&event_date=gte." + today + "&order=event_date.asc&limit=8&select=*,venues(name,metro,type)", {
       headers: { "apikey": SUPA_ANON }
     }).then(r => r.json()).then(d => {
-      if (Array.isArray(d) && d.length) setEvents(d);
+      if (Array.isArray(d) && d.length) {
+        const filtered = metro ? d.filter(e => e.venues?.metro === metro) : d;
+        setEvents(filtered);
+      }
     }).catch(() => {}).finally(() => setLoading(false));
   }, [metro]);
   return { events, loading };
