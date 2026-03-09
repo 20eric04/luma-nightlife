@@ -439,7 +439,10 @@ function Home({go,city="Miami",userName="Guest"}){
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.8),transparent 55%)"}}/>
         <div style={{position:"absolute",top:8,left:20,right:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div><div style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {city==="New York"?"New York, NY":"Miami, FL"}</div><div style={{fontFamily:"var(--fd)",fontSize:19,fontStyle:"italic",color:"white"}}>{getGreeting()}, {userName}</div></div>
-          <div onClick={()=>go("profile")} className="press" style={{width:35,height:35,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fb)",cursor:"pointer"}}>{userName[0]||"G"}</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <NotificationBell dark={true}/>
+            <div onClick={()=>go("profile")} className="press" style={{width:35,height:35,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fb)",cursor:"pointer"}}>{userName[0]||"G"}</div>
+          </div>
         </div>
         <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 18px 14px"}}>
           <span style={{background:"rgba(255,255,255,.15)",backdropFilter:"blur(8px)",color:"white",padding:"2px 8px",borderRadius:18,fontSize:9,fontWeight:700,fontFamily:"var(--fb)"}}>🔥 Featured Tonight</span>
@@ -1263,6 +1266,7 @@ function Bookings({go,refreshKey,localBookings=[]}){
 function VenueDetail({venue,go,onBooked}){
   const [step,    setStep]    = useState("detail");
   const [selT,    setSelT]    = useState(null);
+  const [showReview, setShowReview] = useState(false);
   // Generate real dates starting from tomorrow
   const genDates = () => {
     const dates = [];
@@ -1442,7 +1446,14 @@ function VenueDetail({venue,go,onBooked}){
             fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer",color:"var(--ink)"}}>
           Back to Venue
         </button>
+        <button onClick={()=>setShowReview(true)}
+          style={{width:"100%",padding:"10px",background:"transparent",
+            border:"none",borderRadius:13,fontSize:11,
+            fontFamily:"var(--fb)",fontWeight:500,cursor:"pointer",color:"var(--sub)",marginTop:4}}>
+          ⭐ Rate this venue
+        </button>
       </div>
+      {showReview&&<ReviewModal venue={venue} onClose={()=>setShowReview(false)} onSubmit={()=>setShowReview(false)}/>}
     </div>
   );
 
@@ -1690,6 +1701,9 @@ function VenueDetail({venue,go,onBooked}){
               </div>
             ))}
           </div>
+
+          {/* Reviews */}
+          <VenueReviews venueId={venue.id}/>
         </div>
       </div>
 
@@ -1735,6 +1749,7 @@ function ProDash({setTab,userName="Promoter",proData,onAdmin}){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div><div style={{fontFamily:"var(--fd)",fontSize:13,fontStyle:"italic",color:P.sub}}>Welcome back,</div><div style={{fontFamily:"var(--fd)",fontSize:25,fontWeight:700,color:"white"}}>{userName}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <NotificationBell dark={true}/>
             <div style={{background:"var(--goldbg)",border:"1px solid rgba(201,168,76,.3)",borderRadius:20,padding:"4px 11px"}}><span style={{fontSize:10,color:"var(--gold)",fontWeight:700,fontFamily:"var(--fb)"}}>✦ PROMOTER</span></div>
             <button className="press" onClick={()=>setShowPaywall(true)} style={{background:"rgba(201,168,76,.12)",border:"1px solid rgba(201,168,76,.25)",borderRadius:20,padding:"4px 12px",cursor:"pointer",fontSize:9,color:"var(--gold)",fontWeight:700,fontFamily:"var(--fb)"}}>⬆ Upgrade</button>
           </div>
@@ -3536,6 +3551,11 @@ function Profile({go,onSwitchMode,city,onSignOut,userEmail,userName,onCityChange
         </div>
       </div>
 
+      {/* Referral Rewards */}
+      <div style={{margin:"14px 18px 0"}}>
+        <ReferralSection userEmail={userEmail}/>
+      </div>
+
       {/* Account actions */}
       <div style={{margin:"14px 18px 0"}}>
         <div style={{fontSize:10,fontWeight:700,color:"var(--sub)",letterSpacing:".08em",
@@ -3670,6 +3690,235 @@ function AuthGate({onAuth}) {
 }
 
 // ----------------------------------------------- Venue Admin -----------------------------------------------
+// ----------------------------------------------- Review System ---------------------------------------------
+function ReviewModal({venue,onClose,onSubmit}){
+  const [rating,setRating]=useState(0);
+  const [text,setText]=useState("");
+  const [tags,setTags]=useState([]);
+  const [submitting,setSubmitting]=useState(false);
+  const [done,setDone]=useState(false);
+  const vibeOptions=["🔥 Electric","🍾 Upscale","🎵 Great Music","👥 Great Crowd","📸 Instagrammable","🍸 Strong Drinks","💃 Dance Floor","🪩 Vibe","😎 Chill","⚡ High Energy"];
+  
+  const submit=async()=>{
+    if(!rating)return;
+    setSubmitting(true);
+    const sess=getSession();
+    if(sess?.access_token){
+      try{
+        await fetch(SUPA_URL+"/rest/v1/reviews",{
+          method:"POST",
+          headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,"Content-Type":"application/json","Prefer":"return=minimal"},
+          body:JSON.stringify({user_id:sess.user.id,venue_id:venue.id,rating,text:sanitize(text,300),vibe_tags:tags})
+        });
+        setDone(true);
+        setTimeout(()=>{onSubmit&&onSubmit();onClose();},1500);
+      }catch(e){}
+    }
+    setSubmitting(false);
+  };
+  
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center",animation:"fadeIn .2s ease"}}>
+      <div style={{width:"100%",maxWidth:380,background:"var(--bg)",borderRadius:"20px 20px 0 0",padding:"20px 22px 32px",animation:"slideUp .3s cubic-bezier(.16,1,.3,1)"}}>
+        {done?(
+          <div style={{textAlign:"center",padding:"30px 0"}}>
+            <div style={{fontSize:48,marginBottom:12}}>🎉</div>
+            <div style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"var(--ink)"}}>Thanks for your review!</div>
+          </div>
+        ):(
+          <>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"var(--ink)"}}>Rate {venue.name}</div>
+              <button onClick={onClose} style={{background:"none",border:"none",fontSize:18,color:"var(--dim)",cursor:"pointer"}}>✕</button>
+            </div>
+            {/* Stars */}
+            <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:16}}>
+              {[1,2,3,4,5].map(s=>(
+                <button key={s} onClick={()=>setRating(s)} style={{background:"none",border:"none",fontSize:32,cursor:"pointer",opacity:s<=rating?1:.25,transition:"all .15s",transform:s<=rating?"scale(1.1)":"scale(1)"}}>★</button>
+              ))}
+            </div>
+            <div style={{textAlign:"center",fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:16}}>{["","Not great","It was okay","Good night","Amazing","Unforgettable"][rating]}</div>
+            {/* Vibe tags */}
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14,justifyContent:"center"}}>
+              {vibeOptions.map(v=>{
+                const on=tags.includes(v);
+                return <button key={v} onClick={()=>setTags(t=>on?t.filter(x=>x!==v):[...t,v].slice(0,4))} className="press" style={{padding:"5px 11px",borderRadius:18,fontSize:10,fontWeight:600,fontFamily:"var(--fb)",border:"1.5px solid",cursor:"pointer",background:on?"var(--ink)":"var(--white)",borderColor:on?"var(--ink)":"var(--line2)",color:on?"white":"var(--sub)"}}>{v}</button>;
+              })}
+            </div>
+            {/* Text */}
+            <textarea value={text} onChange={e=>setText(e.target.value.slice(0,300))} placeholder="Tell us about your night (optional)" rows={3} style={{width:"100%",padding:"10px 14px",background:"var(--white)",border:"1.5px solid var(--line2)",borderRadius:12,color:"var(--ink)",fontSize:12,fontFamily:"var(--fb)",outline:"none",resize:"none",marginBottom:14}}/>
+            <button onClick={submit} disabled={!rating||submitting} className="press" style={{width:"100%",padding:"14px",background:rating?"var(--ink)":"var(--line2)",color:rating?"white":"var(--dim)",border:"none",borderRadius:14,fontSize:14,fontWeight:700,fontFamily:"var(--fb)",cursor:rating?"pointer":"default"}}>{submitting?"Submitting...":"Submit Review"}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VenueReviews({venueId}){
+  const [reviews,setReviews]=useState([]);
+  useEffect(()=>{
+    fetch(SUPA_URL+"/rest/v1/reviews?venue_id=eq."+venueId+"&order=created_at.desc&limit=5&select=*,profiles(name)",{
+      headers:{"apikey":SUPA_ANON}
+    }).then(r=>r.json()).then(d=>{if(Array.isArray(d))setReviews(d);}).catch(()=>{});
+  },[venueId]);
+  if(!reviews.length) return null;
+  return(
+    <div style={{marginTop:16}}>
+      <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"var(--ink)",marginBottom:10}}>Recent Reviews</div>
+      {reviews.map(r=>(
+        <div key={r.id} style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:13,padding:"12px 14px",marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{width:24,height:24,borderRadius:"50%",background:"var(--ink)",color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>{(r.profiles?.name||"G")[0]}</div>
+              <span style={{fontSize:11,fontWeight:600,color:"var(--ink)",fontFamily:"var(--fb)"}}>{r.profiles?.name||"Guest"}</span>
+            </div>
+            <div style={{display:"flex",gap:2}}>{[1,2,3,4,5].map(s=><span key={s} style={{fontSize:11,color:s<=r.rating?"var(--gold)":"var(--line2)"}}>★</span>)}</div>
+          </div>
+          {r.text&&<div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",lineHeight:1.6,marginBottom:6}}>{r.text}</div>}
+          {r.vibe_tags?.length>0&&<div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{r.vibe_tags.map(t=><span key={t} style={{fontSize:9,background:"rgba(201,168,76,.08)",color:"var(--gold)",padding:"2px 8px",borderRadius:10,fontFamily:"var(--fb)"}}>{t}</span>)}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ----------------------------------------------- Referral Rewards -------------------------------------------
+function ReferralSection({userEmail}){
+  const [code,setCode]=useState("");
+  const [stats,setStats]=useState({total:0,successful:0,credits:0});
+  const [copied,setCopied]=useState(false);
+  const [loading,setLoading]=useState(true);
+  
+  useEffect(()=>{
+    const sess=getSession();
+    if(!sess?.access_token){setLoading(false);return;}
+    // Fetch referral code from profile
+    fetch(SUPA_URL+"/rest/v1/profiles?id=eq."+sess.user.id+"&select=referral_code,referral_credits",{
+      headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token}
+    }).then(r=>r.json()).then(d=>{
+      if(d?.[0]){
+        let c=d[0].referral_code;
+        if(!c){
+          c=(sess.user.id.slice(0,4)+sess.user.email?.slice(0,2)).toUpperCase();
+          fetch(SUPA_URL+"/rest/v1/profiles?id=eq."+sess.user.id,{
+            method:"PATCH",headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,"Content-Type":"application/json"},
+            body:JSON.stringify({referral_code:c})
+          }).catch(()=>{});
+        }
+        setCode(c);
+        setStats(s=>({...s,credits:d[0].referral_credits||0}));
+      }
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
+  
+  const share=async()=>{
+    const url="https://lumarsv.com?ref="+code;
+    const text="Book VIP tables in Miami & NYC with Luma 🔥 Use my code "+code+" for $25 off → "+url;
+    if(navigator.share){try{await navigator.share({title:"Luma",text,url});}catch(e){}}
+    else{const ok=await copyToClipboard(text);if(ok){setCopied(true);setTimeout(()=>setCopied(false),2000);}}
+  };
+  
+  if(loading) return null;
+  return(
+    <div style={{background:"var(--white)",border:"1px solid var(--line)",borderRadius:16,padding:"16px",marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+        <span style={{fontSize:22}}>🎁</span>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"var(--ink)",fontFamily:"var(--fb)"}}>Invite Friends, Get $25</div>
+          <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)"}}>They get $25 off their first booking too</div>
+        </div>
+      </div>
+      {/* Code display */}
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
+        <div style={{flex:1,padding:"10px 14px",background:"#f5f4f0",border:"1.5px dashed var(--line2)",borderRadius:11,textAlign:"center"}}>
+          <div style={{fontSize:8,color:"var(--dim)",fontFamily:"var(--fb)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:2}}>Your Code</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"var(--ink)",letterSpacing:".08em"}}>{code||"..."}</div>
+        </div>
+        <button onClick={share} className="press" style={{padding:"10px 18px",background:"var(--ink)",color:"white",border:"none",borderRadius:11,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
+          <span style={{fontSize:16}}>{copied?"✓":"📤"}</span>
+          <span>{copied?"Copied":"Share"}</span>
+        </button>
+      </div>
+      {/* Stats */}
+      <div style={{display:"flex",gap:8}}>
+        <div style={{flex:1,padding:"8px",background:"rgba(201,168,76,.06)",borderRadius:10,textAlign:"center"}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"var(--ink)"}}>{stats.successful}</div>
+          <div style={{fontSize:9,color:"var(--sub)",fontFamily:"var(--fb)"}}>Friends joined</div>
+        </div>
+        <div style={{flex:1,padding:"8px",background:"rgba(201,168,76,.06)",borderRadius:10,textAlign:"center"}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"var(--gold)"}}>${(stats.credits/100).toFixed(0)}</div>
+          <div style={{fontSize:9,color:"var(--sub)",fontFamily:"var(--fb)"}}>Credits earned</div>
+        </div>
+      </div>
+      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",textAlign:"center",marginTop:8}}>Invite 3 friends → earn $75 in credits. No limit.</div>
+    </div>
+  );
+}
+
+// ----------------------------------------------- Notifications -----------------------------------------------
+function NotificationBell({dark}){
+  const [notifs,setNotifs]=useState([]);
+  const [open,setOpen]=useState(false);
+  const [unread,setUnread]=useState(0);
+  
+  useEffect(()=>{
+    const sess=getSession();
+    if(!sess?.access_token) return;
+    fetch(SUPA_URL+"/rest/v1/notifications?user_id=eq."+sess.user.id+"&order=sent_at.desc&limit=20",{
+      headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token}
+    }).then(r=>r.json()).then(d=>{
+      if(Array.isArray(d)){setNotifs(d);setUnread(d.filter(n=>!n.read).length);}
+    }).catch(()=>{});
+  },[]);
+  
+  const markRead=async()=>{
+    const sess=getSession();
+    if(!sess?.access_token||!unread) return;
+    await fetch(SUPA_URL+"/rest/v1/notifications?user_id=eq."+sess.user.id+"&read=eq.false",{
+      method:"PATCH",
+      headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,"Content-Type":"application/json"},
+      body:JSON.stringify({read:true})
+    }).catch(()=>{});
+    setNotifs(n=>n.map(x=>({...x,read:true})));
+    setUnread(0);
+  };
+  
+  const typeIcons={booking_confirmed:"🎟",event_tonight:"🔥",new_event:"✨",promo_code:"🏷",referral_reward:"🎁"};
+  
+  return(
+    <div style={{position:"relative"}}>
+      <button onClick={()=>{setOpen(!open);if(!open)markRead();}} className="press" style={{width:32,height:32,borderRadius:"50%",background:dark?"rgba(255,255,255,.1)":"var(--white)",border:dark?"1px solid rgba(255,255,255,.15)":"1px solid var(--line2)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+        <span style={{fontSize:14}}>🔔</span>
+        {unread>0&&<div style={{position:"absolute",top:-2,right:-2,width:16,height:16,borderRadius:"50%",background:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"white",border:dark?"2px solid var(--pro)":"2px solid var(--bg)"}}>{unread}</div>}
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:38,right:0,width:280,maxHeight:320,background:dark?"#1a1a2e":"var(--bg)",border:dark?"1px solid rgba(255,255,255,.1)":"1px solid var(--line)",borderRadius:16,boxShadow:"0 12px 40px rgba(0,0,0,.25)",overflow:"hidden",zIndex:100,animation:"fadeUp .2s cubic-bezier(.16,1,.3,1)"}}>
+          <div style={{padding:"12px 14px 8px",borderBottom:dark?"1px solid rgba(255,255,255,.06)":"1px solid var(--line)"}}>
+            <div style={{fontSize:13,fontWeight:700,color:dark?"white":"var(--ink)",fontFamily:"var(--fb)"}}>Notifications</div>
+          </div>
+          <div style={{maxHeight:260,overflowY:"auto"}}>
+            {notifs.length===0?(
+              <div style={{padding:"24px 14px",textAlign:"center",fontSize:11,color:dark?"rgba(255,255,255,.3)":"var(--dim)",fontFamily:"var(--fb)"}}>No notifications yet</div>
+            ):notifs.map(n=>(
+              <div key={n.id} style={{padding:"10px 14px",borderBottom:dark?"1px solid rgba(255,255,255,.04)":"1px solid var(--line)",opacity:n.read?.7:1}}>
+                <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                  <span style={{fontSize:16,flexShrink:0}}>{typeIcons[n.type]||"📱"}</span>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:600,color:dark?"white":"var(--ink)",fontFamily:"var(--fb)"}}>{n.title}</div>
+                    {n.body&&<div style={{fontSize:10,color:dark?"rgba(255,255,255,.4)":"var(--sub)",fontFamily:"var(--fb)",marginTop:2,lineHeight:1.4}}>{n.body}</div>}
+                    <div style={{fontSize:9,color:dark?"rgba(255,255,255,.2)":"var(--dim)",fontFamily:"var(--fb)",marginTop:3}}>{new Date(n.sent_at).toLocaleDateString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VenueAdmin({goBack}){
   const [venues,setVenues]=useState([]);
   const [loading,setLoading]=useState(true);
