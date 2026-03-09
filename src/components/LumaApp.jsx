@@ -3710,11 +3710,12 @@ function ReviewModal({venue,onClose,onSubmit}){
           headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,"Content-Type":"application/json","Prefer":"return=minimal"},
           body:JSON.stringify({user_id:sess.user.id,venue_id:venue.id,rating,text:sanitize(text,300),vibe_tags:tags})
         });
-        setDone(true);
-        setTimeout(()=>{onSubmit&&onSubmit();onClose();},1500);
       }catch(e){}
     }
+    // Always show success (demo mode or real)
+    setDone(true);
     setSubmitting(false);
+    setTimeout(()=>{onSubmit&&onSubmit();onClose();},1500);
   };
   
   return(
@@ -3851,7 +3852,7 @@ function ReferralSection({userEmail}){
           <div style={{fontSize:9,color:"var(--sub)",fontFamily:"var(--fb)"}}>Credits earned</div>
         </div>
       </div>
-      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",textAlign:"center",marginTop:8}}>Invite 3 friends → earn $75 in credits. No limit.</div>
+      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",textAlign:"center",marginTop:8}}>$25 per friend. No limit on referrals.</div>
     </div>
   );
 }
