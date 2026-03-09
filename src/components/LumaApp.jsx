@@ -1397,7 +1397,7 @@ function VenueDetail({venue,go,onBooked}){
   // ----------------------------------------------- CONFIRM SCREEN ----------------------------------------
   if (step==="confirm"&&booking) return (
     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
-      justifyContent:"center",padding:28,textAlign:"center",background:"var(--bg)"}}>
+      justifyContent:"center",padding:28,textAlign:"center",background:"var(--bg)",position:"relative",overflow:"hidden"}}>
       <div style={{animation:"popIn .5s cubic-bezier(.16,1,.3,1) both",width:"100%"}}>
         <div style={{width:68,height:68,borderRadius:"50%",background:"var(--ink)",
           display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,margin:"0 auto 16px"}}>🎉</div>
@@ -3702,24 +3702,23 @@ function ReviewModal({venue,onClose,onSubmit}){
   const submit=async()=>{
     if(!rating)return;
     setSubmitting(true);
-    const sess=getSession();
-    if(sess?.access_token){
-      try{
+    try{
+      const sess=getSession();
+      if(sess?.access_token){
         await fetch(SUPA_URL+"/rest/v1/reviews",{
           method:"POST",
           headers:{"apikey":SUPA_ANON,"Authorization":"Bearer "+sess.access_token,"Content-Type":"application/json","Prefer":"return=minimal"},
           body:JSON.stringify({user_id:sess.user.id,venue_id:venue.id,rating,text:sanitize(text,300),vibe_tags:tags})
         });
-      }catch(e){}
-    }
-    // Always show success (demo mode or real)
-    setDone(true);
+      }
+    }catch(e){}
     setSubmitting(false);
-    setTimeout(()=>{onSubmit&&onSubmit();onClose();},1500);
+    setDone(true);
+    setTimeout(()=>{if(onSubmit)onSubmit();if(onClose)onClose();},1500);
   };
   
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center",animation:"fadeIn .2s ease"}}>
+    <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.6)",backdropFilter:"blur(8px)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center",animation:"fadeIn .2s ease"}}>
       <div style={{width:"100%",maxWidth:380,background:"var(--bg)",borderRadius:"20px 20px 0 0",padding:"20px 22px 32px",animation:"slideUp .3s cubic-bezier(.16,1,.3,1)"}}>
         {done?(
           <div style={{textAlign:"center",padding:"30px 0"}}>
@@ -3852,7 +3851,7 @@ function ReferralSection({userEmail}){
           <div style={{fontSize:9,color:"var(--sub)",fontFamily:"var(--fb)"}}>Credits earned</div>
         </div>
       </div>
-      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",textAlign:"center",marginTop:8}}>$25 per friend. No limit on referrals.</div>
+      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",textAlign:"center",marginTop:8}}>You get $25, they get $25 off their first booking. No limit.</div>
     </div>
   );
 }
