@@ -123,6 +123,8 @@ const CSS = `
 .fi{animation:fadeIn .25s ease both}
 .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-height:0;flex:1;padding-bottom:16px}
 .scroll::-webkit-scrollbar{display:none}
+.hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;overscroll-behavior-x:contain}
+.hscroll::-webkit-scrollbar{display:none}
 .press{transition:transform .1s,opacity .1s;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .press:active{transform:scale(.97);opacity:.8}
 .skel{background:linear-gradient(90deg,#e8e6e1 25%,#f0ede8 50%,#e8e6e1 75%);background-size:400px 100%;animation:shimmer 1.4s infinite linear}
@@ -463,7 +465,7 @@ function Home({go,city="Miami",userName="Guest"}){
           <span style={{fontFamily:"var(--fd)",fontSize:19,fontWeight:700,color:"var(--ink)"}}>Hot Right Now</span>
           <span className="press" onClick={()=>go("explore")} style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",fontWeight:600}}>See all</span>
         </div>
-        <div style={{display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
+        <div className="hscroll" style={{display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
           {hotStrip.map((v,i)=>(
             <div key={v.id} className={`press fu fu${Math.min(i+1,3)}`} onClick={()=>go("venue",v)} style={{flexShrink:0,width:178,borderRadius:16,overflow:"hidden",background:"var(--white)",border:"1px solid var(--line)"}}>
               <div style={{position:"relative",height:125}}>
@@ -490,7 +492,7 @@ function Home({go,city="Miami",userName="Guest"}){
             <span style={{fontFamily:"var(--fd)",fontSize:19,fontWeight:700,color:"var(--ink)"}}>Upcoming Events</span>
             <span style={{fontSize:11,color:"var(--gold)",fontFamily:"var(--fb)",fontWeight:600}}>🔥 This week</span>
           </div>
-          <div style={{display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
+          <div className="hscroll" style={{display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
             {events.map(ev=>(
               <div key={ev.id} className="press" onClick={()=>{
                 const v=allVenues.find(x=>x.id===ev.venue_id)||display[0];
@@ -609,7 +611,7 @@ function Explore({go,city="Miami"}){
       </div>
 
       {/* Date filter */}
-      <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",marginBottom:9,paddingBottom:1}}>
+      <div className="hscroll" style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",marginBottom:9,paddingBottom:1}}>
         {dates.map(d=>(
           <button key={d} onClick={()=>setSelDate(selDate===d?null:d)} className="press"
             style={{flexShrink:0,padding:"5px 11px",borderRadius:20,fontSize:10,fontWeight:600,
@@ -623,7 +625,7 @@ function Explore({go,city="Miami"}){
       </div>
 
       {/* Type filter */}
-      <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",marginBottom:14,paddingBottom:1}}>
+      <div className="hscroll" style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",marginBottom:14,paddingBottom:1}}>
         {types.map(t=>(
           <button key={t} onClick={()=>setTypeFilter(t)} className="press"
             style={{flexShrink:0,padding:"4px 10px",borderRadius:20,fontSize:10,fontWeight:600,
@@ -977,7 +979,7 @@ function MapScreen({go,city="Miami"}){
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",background:"var(--bg)"}}>
       <div style={{padding:"4px 18px 10px",flexShrink:0}}>
         <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"var(--ink)",marginBottom:9}}>Nearby</div>
-        <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingBottom:1}}>
+        <div className="hscroll" style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingBottom:1}}>
           {filters.map(f=>(
             <button key={f} onClick={()=>{setFilter(f);setSel(null);}} className="press"
               style={{flexShrink:0,padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:600,
@@ -1179,7 +1181,7 @@ function MapScreen({go,city="Miami"}){
 
       {/* Venue strip */}
       <div style={{flexShrink:0,borderTop:"1px solid var(--line)",background:"white",padding:"10px 0 8px"}}>
-        <div style={{display:"flex",gap:9,overflowX:"auto",scrollbarWidth:"none",paddingLeft:16,paddingRight:16}}>
+        <div className="hscroll" style={{display:"flex",gap:9,overflowX:"auto",scrollbarWidth:"none",paddingLeft:16,paddingRight:16}}>
           {filteredVenues.map(v=>(
             <div key={v.id} className="press"
               onClick={()=>{setSel(v);flyTo(v.lat,v.lng);}}
@@ -1458,7 +1460,7 @@ function VenueDetail({venue,go,onBooked}){
         {/* Date */}
         <div style={{marginBottom:14}}>
           <div style={{fontSize:10,color:"var(--sub)",fontWeight:600,textTransform:"uppercase",letterSpacing:".07em",marginBottom:7,fontFamily:"var(--fb)"}}>Date</div>
-          <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none"}}>
+          <div className="hscroll" style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none"}}>
             {DATES.map(d=>(
               <button key={d} onClick={()=>setDate(d)} className="press"
                 style={{flexShrink:0,padding:"7px 11px",borderRadius:10,border:"1.5px solid",
@@ -1662,7 +1664,7 @@ function VenueDetail({venue,go,onBooked}){
           {/* Available dates preview */}
           <div style={{marginBottom:16}}>
             <div style={{fontSize:10,color:"var(--sub)",fontWeight:600,textTransform:"uppercase",letterSpacing:".07em",marginBottom:8,fontFamily:"var(--fb)"}}>Available Dates</div>
-            <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingRight:18}}>
+            <div className="hscroll" style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingRight:18}}>
               {DATES.map(d=>(
                 <div key={d} style={{flexShrink:0,background:"var(--white)",border:"1px solid var(--line)",borderRadius:10,padding:"8px 12px",textAlign:"center"}}>
                   <div style={{fontSize:11,fontWeight:600,color:"var(--ink)",fontFamily:"var(--fb)"}}>{d}</div>
@@ -2455,7 +2457,7 @@ function PromotersDir({goPromoter}){
         {!q&&(
           <div style={{marginBottom:16}}>
             <div style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"var(--ink)",marginBottom:10}}>⭐ Featured</div>
-            <div style={{display:"flex",gap:10,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
+            <div className="hscroll" style={{display:"flex",gap:10,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
               {PROMOTERS.filter(p=>p.verified).map(p=>(
                 <div key={p.id} className="press" onClick={()=>goPromoter(p)} style={{flexShrink:0,width:155,background:"var(--white)",border:"1px solid var(--line)",borderRadius:16,padding:"13px 12px",textAlign:"center"}}>
                   <div style={{position:"relative",display:"inline-block",marginBottom:8}}>
@@ -3883,6 +3885,7 @@ export default function App(){
       if(gt==="bookings") return <Bookings go={go} refreshKey={bookingKey} localBookings={localBookings}/>;
       return <Home go={go} userName={userName}/>;
     }
+    if(showAdmin) return <VenueAdmin goBack={()=>setShowAdmin(false)}/>;
     if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)}/>;
     if(pt==="guests")    return <ProGuests setTab={setPt} onMessage={(guestName)=>{setMsgTarget(guestName);setPt("messages");}}/>;
     if(pt==="links")     return <ProLinks/>;
@@ -3890,7 +3893,6 @@ export default function App(){
     if(pt==="payouts")   return <ProPayouts/>;
     if(pt==="messages")  return <ProMessages initialOpen={msgTarget} onOpened={()=>setMsgTarget(null)}/>;
     if(pt==="pricing")   return <ProPricing/>;
-    if(showAdmin) return <VenueAdmin goBack={()=>setShowAdmin(false)}/>;
     return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)}/>;
   };
 
