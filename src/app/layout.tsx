@@ -6,7 +6,11 @@ export const metadata: Metadata = {
   description: 'Book VIP tables in 60 seconds. Real pricing, verified promoters, no DM negotiations. Miami & New York nightlife.',
   keywords: ['nightlife', 'booking', 'miami', 'new york', 'rooftop', 'vip', 'bottle service', 'promoter', 'club'],
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
     apple: '/apple-touch-icon.png',
   },
   openGraph: {
