@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     description: 'Book bottle service, rooftops, and nightlife in Miami & NYC. Real pricing. Verified promoters.',
     type: 'website',
     url: 'https://lumarsv.com',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Luma Nightlife Booking' }],
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Luma Nightlife Booking' }],
   },
   twitter: {
     card: 'summary_large_image',

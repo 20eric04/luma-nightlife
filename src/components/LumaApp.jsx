@@ -292,6 +292,20 @@ function usePromoterData() {
   return data;
 }
 
+// Events hook — fetches upcoming events from DB
+function useEvents(metro) {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    fetch(SUPA_URL + "/rest/v1/events?active=eq.true&event_date=gte." + new Date().toISOString().slice(0,10) + "&order=event_date.asc&limit=8" + (metro ? "&venue_id=in.(" + "SELECT id FROM venues WHERE metro='" + metro + "')" : ""), {
+      headers: { "apikey": SUPA_ANON }
+    }).then(r => r.json()).then(d => {
+      if (Array.isArray(d) && d.length) setEvents(d);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [metro]);
+  return { events, loading };
+}
+
 
 // Dynamic date helpers for mock data
 const _fd=(d)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
@@ -406,6 +420,7 @@ function SB({dark}){
 function Home({go,city="Miami",userName="Guest"}){
   const metro=city==="New York"?"New York":"Miami";
   const {venues:allVenues}=useVenues(metro);
+  const {events}=useEvents(metro);
   const hot=allVenues.filter(v=>v.hot);
   const display=allVenues.length?allVenues:VENUES.filter(v=>v.metro===metro);
   const hotStrip=hot.length?hot:display.slice(0,3);
@@ -463,6 +478,41 @@ function Home({go,city="Miami",userName="Guest"}){
           ))}
         </div>
       </div>
+
+      {/* Upcoming Events */}
+      {events.length>0&&(
+        <div style={{padding:"14px 0 6px"}}>
+          <div style={{padding:"0 18px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <span style={{fontFamily:"var(--fd)",fontSize:19,fontWeight:700,color:"var(--ink)"}}>Upcoming Events</span>
+            <span style={{fontSize:11,color:"var(--gold)",fontFamily:"var(--fb)",fontWeight:600}}>🔥 This week</span>
+          </div>
+          <div style={{display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
+            {events.map(ev=>(
+              <div key={ev.id} className="press" onClick={()=>{
+                const v=allVenues.find(x=>x.id===ev.venue_id)||display[0];
+                if(v) go("venue",v);
+              }} style={{flexShrink:0,width:220,borderRadius:16,overflow:"hidden",background:"var(--ink)",border:"1px solid rgba(255,255,255,.08)"}}>
+                <div style={{position:"relative",height:110}}>
+                  <Img src={ev.img_url} style={{position:"absolute",inset:0}} alt={ev.name} type="Nightclub" name={ev.name}/>
+                  <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.8),transparent 60%)"}}/>
+                  {ev.dj&&<div style={{position:"absolute",top:8,right:8,background:"rgba(201,168,76,.9)",color:"#0a0a0a",fontSize:8,fontWeight:700,fontFamily:"var(--fb)",padding:"2px 8px",borderRadius:10}}>🎧 {ev.dj}</div>}
+                  <div style={{position:"absolute",bottom:8,left:10,right:10}}>
+                    <div style={{fontFamily:"var(--fd)",fontSize:14,fontWeight:700,color:"white",lineHeight:1.2}}>{ev.name}</div>
+                  </div>
+                </div>
+                <div style={{padding:"8px 10px 10px"}}>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",marginBottom:3}}>
+                    📅 {new Date(ev.event_date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} . {ev.doors_time}
+                  </div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {(ev.tags||[]).slice(0,2).map(t=><span key={t} style={{fontSize:8,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.08)",padding:"2px 6px",borderRadius:8,fontFamily:"var(--fb)"}}>{t}</span>)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* All list */}
       <div style={{padding:"10px 18px 90px"}}>
@@ -1662,7 +1712,7 @@ function ProCard({children,style={},onClick}){
   return <div onClick={onClick} className={onClick?"press":""} style={{background:P.bg,border:P.border,borderRadius:16,...style}}>{children}</div>;
 }
 
-function ProDash({setTab,userName="Promoter",proData}){
+function ProDash({setTab,userName="Promoter",proData,onAdmin}){
   const [showPaywall,setShowPaywall]=useState(false);
   const guests=proData?.guests||GUESTS;
   const payouts=proData?.payouts||PAYOUTS;
@@ -1719,8 +1769,8 @@ function ProDash({setTab,userName="Promoter",proData}){
         {/* Quick nav */}
         <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"white",marginBottom:9}}>Quick Actions</div>
         <div style={{display:"flex",flexDirection:"column",gap:7,paddingBottom:90}}>
-          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"]].map(([ic,l,s,t])=>(
-            <ProCard key={l} onClick={()=>setTab(t)} style={{padding:"11px 13px"}}>
+          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"],["🏢","Manage Venues","Add, edit, hide venues","admin"]].map(([ic,l,s,t])=>(
+            <ProCard key={l} onClick={()=>t==="admin"?(onAdmin&&onAdmin()):setTab(t)} style={{padding:"11px 13px"}}>
               <div style={{display:"flex",alignItems:"center",gap:11}}>
                 <span style={{fontSize:18,width:24,textAlign:"center"}}>{ic}</span>
                 <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>{l}</div><div style={{fontSize:10,color:P.sub,fontFamily:"var(--fb)",marginTop:1}}>{s}</div></div>
@@ -3613,6 +3663,106 @@ function AuthGate({onAuth}) {
   );
 }
 
+// ----------------------------------------------- Venue Admin -----------------------------------------------
+function VenueAdmin({goBack}){
+  const [venues,setVenues]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [editing,setEditing]=useState(null);
+  const [showAdd,setShowAdd]=useState(false);
+  const [form,setForm]=useState({name:"",metro:"Miami",type:"Nightclub",city:"",address:"",price_min:100,rating:4.5,about:"",active:true});
+  const [saving,setSaving]=useState(false);
+  const [msg,setMsg]=useState("");
+
+  useEffect(()=>{
+    fetch(SUPA_URL+"/rest/v1/venues?order=metro,name&select=id,name,metro,type,city,price_min,rating,active",{
+      headers:{"apikey":SUPA_ANON}
+    }).then(r=>r.json()).then(d=>{if(Array.isArray(d))setVenues(d);}).catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
+
+  const saveVenue=async(v)=>{
+    setSaving(true); setMsg("");
+    const sess=getSession();
+    const headers={"apikey":SUPA_ANON,"Content-Type":"application/json","Prefer":"return=representation"};
+    if(sess?.access_token) headers["Authorization"]="Bearer "+sess.access_token;
+    try{
+      const isNew=!v.id;
+      const url=SUPA_URL+"/rest/v1/venues"+(isNew?"":"?id=eq."+v.id);
+      const r=await fetch(url,{method:isNew?"POST":"PATCH",headers,body:JSON.stringify(v)});
+      const d=await r.json();
+      if(Array.isArray(d)&&d[0]){
+        if(isNew) setVenues(prev=>[...prev,d[0]]);
+        else setVenues(prev=>prev.map(x=>x.id===d[0].id?d[0]:x));
+        setMsg("✓ Saved"); setEditing(null); setShowAdd(false);
+        setForm({name:"",metro:"Miami",type:"Nightclub",city:"",address:"",price_min:100,rating:4.5,about:"",active:true});
+      } else setMsg("Error saving");
+    }catch(e){setMsg("Error: "+e.message);}
+    setSaving(false);
+  };
+
+  const toggleActive=async(v)=>{
+    const sess=getSession();
+    const headers={"apikey":SUPA_ANON,"Content-Type":"application/json","Prefer":"return=representation"};
+    if(sess?.access_token) headers["Authorization"]="Bearer "+sess.access_token;
+    await fetch(SUPA_URL+"/rest/v1/venues?id=eq."+v.id,{method:"PATCH",headers,body:JSON.stringify({active:!v.active})});
+    setVenues(prev=>prev.map(x=>x.id===v.id?{...x,active:!x.active}:x));
+  };
+
+  const VenueForm=({data,onSave,onCancel})=>{
+    const [f,setF]=useState(data);
+    return(
+      <div style={{padding:"14px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,marginBottom:10}}>
+        <input value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="Venue name" style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",marginBottom:8,outline:"none"}}/>
+        <div style={{display:"flex",gap:6,marginBottom:8}}>
+          {["Miami","New York"].map(m=><button key={m} onClick={()=>setF({...f,metro:m})} style={{flex:1,padding:"7px",borderRadius:9,border:"1.5px solid",fontSize:11,fontWeight:600,fontFamily:"var(--fb)",cursor:"pointer",background:f.metro===m?"var(--gold)":"transparent",borderColor:f.metro===m?"var(--gold)":"rgba(255,255,255,.15)",color:f.metro===m?"#0a0a0a":"rgba(255,255,255,.5)"}}>{m}</button>)}
+        </div>
+        <div style={{display:"flex",gap:6,marginBottom:8}}>
+          {["Nightclub","Rooftop","Lounge","Pool Party"].map(t=><button key={t} onClick={()=>setF({...f,type:t})} style={{padding:"5px 10px",borderRadius:9,border:"1.5px solid",fontSize:10,fontWeight:600,fontFamily:"var(--fb)",cursor:"pointer",background:f.type===t?"var(--gold)":"transparent",borderColor:f.type===t?"var(--gold)":"rgba(255,255,255,.15)",color:f.type===t?"#0a0a0a":"rgba(255,255,255,.5)"}}>{t}</button>)}
+        </div>
+        <input value={f.city} onChange={e=>setF({...f,city:e.target.value})} placeholder="Neighborhood (e.g. South Beach)" style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",marginBottom:8,outline:"none"}}/>
+        <div style={{display:"flex",gap:6,marginBottom:8}}>
+          <input type="number" value={f.price_min} onChange={e=>setF({...f,price_min:parseInt(e.target.value)||0})} placeholder="Min price $" style={{flex:1,padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
+          <input type="number" step="0.1" value={f.rating} onChange={e=>setF({...f,rating:parseFloat(e.target.value)||0})} placeholder="Rating" style={{width:80,padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",outline:"none"}}/>
+        </div>
+        <textarea value={f.about||""} onChange={e=>setF({...f,about:e.target.value})} placeholder="Description" rows={2} style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"white",fontSize:12,fontFamily:"var(--fb)",marginBottom:10,outline:"none",resize:"none"}}/>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>onSave(f)} disabled={saving||!f.name.trim()} style={{flex:1,padding:"10px",background:"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:11,fontSize:12,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer",opacity:saving?.6:1}}>{saving?"Saving...":"Save"}</button>
+          <button onClick={onCancel} style={{padding:"10px 16px",background:"rgba(255,255,255,.07)",color:"rgba(255,255,255,.5)",border:"none",borderRadius:11,fontSize:12,fontFamily:"var(--fb)",cursor:"pointer"}}>Cancel</button>
+        </div>
+      </div>
+    );
+  };
+
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+      <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Venue Admin</span>
+        <button className="press" onClick={()=>{setShowAdd(true);setEditing(null);}} style={{padding:"6px 14px",background:"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:10,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>+ Add Venue</button>
+      </div>
+      {msg&&<div style={{margin:"0 18px 8px",padding:"8px 12px",background:msg.startsWith("✓")?"rgba(74,222,128,.15)":"rgba(239,68,68,.15)",borderRadius:10,fontSize:11,color:msg.startsWith("✓")?"#4ade80":"#f87171",fontFamily:"var(--fb)"}}>{msg}</div>}
+      <div className="scroll" style={{flex:1,overflowY:"auto",padding:"0 18px"}}>
+        {showAdd&&<VenueForm data={form} onSave={saveVenue} onCancel={()=>setShowAdd(false)}/>}
+        {loading?<div style={{color:"rgba(255,255,255,.3)",fontFamily:"var(--fb)",fontSize:12,padding:20,textAlign:"center"}}>Loading venues...</div>:
+          venues.map(v=>(
+            editing===v.id?
+              <VenueForm key={v.id} data={v} onSave={saveVenue} onCancel={()=>setEditing(null)}/>:
+              <div key={v.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:12,marginBottom:6}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:v.active?"#4ade80":"#f87171",flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{v.name}</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.35)",fontFamily:"var(--fb)"}}>{v.metro} . {v.type} . ${v.price_min}+</div>
+                </div>
+                <button className="press" onClick={()=>setEditing(v.id)} style={{padding:"4px 10px",background:"rgba(255,255,255,.07)",border:"none",borderRadius:8,fontSize:10,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",cursor:"pointer"}}>Edit</button>
+                <button className="press" onClick={()=>toggleActive(v)} style={{padding:"4px 10px",background:v.active?"rgba(239,68,68,.12)":"rgba(74,222,128,.12)",border:"none",borderRadius:8,fontSize:10,color:v.active?"#f87171":"#4ade80",fontFamily:"var(--fb)",cursor:"pointer"}}>{v.active?"Hide":"Show"}</button>
+              </div>
+          ))
+        }
+        <div style={{height:40}}/>
+      </div>
+    </div>
+  );
+}
+
 export default function App(){
   const [session,_setSessionState] = useState(()=>getSession());
   const [guestMode,setGuestMode] = useState(false);
@@ -3656,6 +3806,16 @@ export default function App(){
   const [inviteData,setInviteData]=useState(null); // {promoter, event}
   const [stack,setStack]=useState([]);
   const [msgTarget,setMsgTarget]=useState(null);
+  const [showAdmin,setShowAdmin]=useState(false);
+  const [pwaPrompt,setPwaPrompt]=useState(null);
+  const [showPwaBanner,setShowPwaBanner]=useState(false);
+
+  // PWA install prompt
+  useEffect(()=>{
+    const handler=(e)=>{e.preventDefault();setPwaPrompt(e);setShowPwaBanner(true);};
+    window.addEventListener("beforeinstallprompt",handler);
+    return()=>window.removeEventListener("beforeinstallprompt",handler);
+  },[]);
   const [bookingKey,setBookingKey]=useState(0);
   const [localBookings,setLocalBookings]=useState([]);
   const onBooked=(booking)=>{
@@ -3719,14 +3879,15 @@ export default function App(){
       if(gt==="bookings") return <Bookings go={go} refreshKey={bookingKey} localBookings={localBookings}/>;
       return <Home go={go} userName={userName}/>;
     }
-    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData}/>;
+    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)}/>;
     if(pt==="guests")    return <ProGuests setTab={setPt} onMessage={(guestName)=>{setMsgTarget(guestName);setPt("messages");}}/>;
     if(pt==="links")     return <ProLinks/>;
     if(pt==="analytics") return <ProAnalytics/>;
     if(pt==="payouts")   return <ProPayouts/>;
     if(pt==="messages")  return <ProMessages initialOpen={msgTarget} onOpened={()=>setMsgTarget(null)}/>;
     if(pt==="pricing")   return <ProPricing/>;
-    return <ProDash setTab={setPt} userName={userName} proData={proData}/>;
+    if(showAdmin) return <VenueAdmin goBack={()=>setShowAdmin(false)}/>;
+    return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)}/>;
   };
 
   function GuestTabs(){
@@ -3842,6 +4003,18 @@ export default function App(){
                     {renderScreen()}
                   </div>
                 </div>
+                {/* PWA Install Banner */}
+                {showPwaBanner&&pwaPrompt&&(
+                  <div style={{padding:"8px 14px",background:pro?"rgba(201,168,76,.12)":"rgba(201,168,76,.08)",borderTop:"1px solid rgba(201,168,76,.15)",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                    <span style={{fontSize:18}}>📱</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,fontWeight:700,color:pro?"white":"var(--ink)",fontFamily:"var(--fb)"}}>Add Luma to Home Screen</div>
+                      <div style={{fontSize:9,color:pro?"rgba(255,255,255,.4)":"var(--sub)",fontFamily:"var(--fb)"}}>Quick access, app-like experience</div>
+                    </div>
+                    <button className="press" onClick={async()=>{pwaPrompt.prompt();const r=await pwaPrompt.userChoice;if(r.outcome==="accepted")setShowPwaBanner(false);}} style={{padding:"6px 14px",background:"var(--gold)",color:"#0a0a0a",border:"none",borderRadius:10,fontSize:10,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Install</button>
+                    <button onClick={()=>setShowPwaBanner(false)} style={{background:"none",border:"none",color:pro?"rgba(255,255,255,.3)":"var(--dim)",fontSize:14,cursor:"pointer",padding:4}}>✕</button>
+                  </div>
+                )}
                 {((!pro&&!venue&&!selPromoter&&!inviteData)||pro)?<>{pro?<ProTabs/>:<GuestTabs/>}</>:null}
               </div>
               {/* Side buttons */}
