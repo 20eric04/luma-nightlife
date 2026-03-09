@@ -1382,6 +1382,7 @@ function Bookings({go,refreshKey,localBookings=[]}){
           </div>
         ))}
       </div>}
+    </div>
       {/* QR Modal */}
       {qrBooking&&(
         <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",backdropFilter:"blur(8px)",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,animation:"fadeIn .2s ease"}}>
