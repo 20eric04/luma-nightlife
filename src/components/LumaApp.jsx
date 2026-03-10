@@ -867,7 +867,7 @@ function MapScreen({go,city="Miami"}){
 
   // Zoom
   const doZoom=(dz,sx=0,sy=0)=>{
-    const s0=sR.current,s1=Math.max(1200,Math.min(14000,s0*Math.pow(1.35,dz)));
+    const s0=sR.current,s1=Math.max(2600,Math.min(12000,s0*Math.pow(1.35,dz)));
     const r=s1/s0,p=pR.current;
     const np={x:(p.x-sx)*r+sx,y:(p.y-sy)*r+sy};
     sR.current=s1;pR.current=np;setScale(s1);setPan({...np});
@@ -897,7 +897,7 @@ function MapScreen({go,city="Miami"}){
         const[a,b]=[e.touches[0],e.touches[1]];
         const d=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
         const r=d/pinchR.current.d;
-        const s1=Math.max(1200,Math.min(14000,pinchR.current.s*r));
+        const s1=Math.max(2600,Math.min(12000,pinchR.current.s*r));
         const rv=s1/pinchR.current.s,{mx,my,p}=pinchR.current;
         const np={x:(p.x-mx)*rv+mx,y:(p.y-my)*rv+my};
         sR.current=s1;pR.current=np;setScale(s1);setPan({...np});
