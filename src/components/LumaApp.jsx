@@ -873,7 +873,7 @@ function MapScreen({go,city="Miami"}){
       });
 
       // Dark tile layer that matches the app aesthetic
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{
         maxZoom:19,
       }).addTo(map);
 
@@ -911,7 +911,7 @@ function MapScreen({go,city="Miami"}){
       // Custom gold price marker
       const icon=L.divIcon({
         className:"",
-        html:`<div style="background:#0a0a0a;border:2px solid #c9a84c;color:white;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.5);display:flex;align-items:center;gap:4px;cursor:pointer;transform:translate(-50%,-50%)"><span style="color:#c9a84c">$${v.price_min||v.price||100}</span><span style="font-size:8px;color:rgba(255,255,255,.4)">+</span></div>`,
+        html:`<div style="background:white;border:2px solid #c9a84c;color:#0a0a0a;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.15);display:flex;align-items:center;gap:4px;cursor:pointer;transform:translate(-50%,-50%)"><span style="color:#0a0a0a;font-weight:800">$${v.price_min||v.price||100}</span><span style="font-size:8px;color:rgba(0,0,0,.3)">+</span></div>`,
         iconSize:[0,0],
         iconAnchor:[0,0],
       });
@@ -4429,7 +4429,8 @@ export default function App(){
 
         <div style={{display:"flex",alignItems:"center",gap:52,width:"100%",maxWidth:940,padding:"0 28px",position:"relative",zIndex:1}}>
 
-          {/* Left panel */}
+          {/* Left panel - hidden in iframes */}
+          {typeof window!=="undefined"&&window.self===window.top&&(
           <div style={{flex:1,minWidth:0,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1) both"}}>
             <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:13}}>
               <div style={{width:16,height:1,background:pro?"var(--gold)":"var(--ink)"}}/>
@@ -4469,6 +4470,7 @@ export default function App(){
               </div>
             </div>
           </div>
+          )}
 
           {/* iPhone */}
           <div style={{flexShrink:0,animation:"popIn .6s cubic-bezier(.16,1,.3,1) .1s both"}}>
@@ -4480,7 +4482,7 @@ export default function App(){
               <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                 <SB dark={pro}/>
                 <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}}>
-                  <div className="fade-screen" key={pro?pt:gt+(venue?.id||"")+(selPromoter?.id||"")+(showProfile?"p":"")+(inviteData?.event?.id||"")} style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
+                  <div className="fade-screen" key={pro?pt:gt+(venue?.id||"")+(selPromoter?.id||"")+(showProfile?"p":"")+(inviteData?.event?.id||"")} style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden",background:pro?"var(--pro)":"var(--bg)"}}>
                     {renderScreen()}
                   </div>
                 </div>
