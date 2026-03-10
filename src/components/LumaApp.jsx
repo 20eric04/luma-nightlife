@@ -121,7 +121,7 @@ const CSS = `
 .fu{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
 .fu1{animation-delay:.07s}.fu2{animation-delay:.14s}.fu3{animation-delay:.21s}
 .fi{animation:fadeIn .25s ease both}
-.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-height:0;flex:1;padding-bottom:16px}
+.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-height:0;flex:1;padding-bottom:16px;touch-action:pan-y;overscroll-behavior-y:contain}
 .scroll::-webkit-scrollbar{display:none}
 .hscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x;overscroll-behavior-x:contain}
 .hscroll::-webkit-scrollbar{display:none}
@@ -2025,7 +2025,7 @@ function ProLinks(){
   };
   const [qr,setQr]=useState(null);
   if(qr) return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",animation:"scaleIn .25s cubic-bezier(.16,1,.3,1) both"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden",animation:"scaleIn .25s cubic-bezier(.16,1,.3,1) both"}}>
       <div style={{padding:"10px 18px 12px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid rgba(255,255,255,.07)",flexShrink:0}}>
         <button onClick={()=>setQr(null)} className="press"
           style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white"}}>‹</button>
@@ -2251,7 +2251,7 @@ function ProMessages({initialOpen,onOpened}){
     const conv=threads.find(c=>c.id===open);
     if(!conv) return null;
     return(
-      <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden"}}>
         <div style={{padding:"8px 18px 10px",display:"flex",alignItems:"center",gap:9,borderBottom:"1px solid rgba(255,255,255,.07)",flexShrink:0}}>
           <button className="press" onClick={()=>setOpen(null)} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white"}}>‹</button>
           <div style={{width:33,height:33,borderRadius:"50%",background:"var(--goldbg)",border:"1px solid rgba(201,168,76,.22)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"var(--gold)",fontFamily:"var(--fd)"}}>{conv.av}</div>
@@ -2870,7 +2870,7 @@ function PromoterProfile({promoter,goBack,goVenue,goBookPromoter}){
   );
 
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",animation:"slideUp .35s cubic-bezier(.16,1,.3,1) both"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",minHeight:0,overflow:"hidden",animation:"slideUp .35s cubic-bezier(.16,1,.3,1) both"}}>
       <div className="scroll" style={{flex:1,overflowY:"auto"}}>
         {/* Hero */}
         <div style={{background:"var(--ink)",padding:"14px 18px 18px",position:"relative",overflow:"hidden"}}>
@@ -2995,7 +2995,7 @@ function InviteLanding({promoter,event,go,goBack,goPromoter}){
     trackLinkClick(event?.linkId||null, promoter?.id||null);
   },[]);
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",animation:"scaleIn .28s cubic-bezier(.16,1,.3,1) both"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",minHeight:0,overflow:"hidden",animation:"scaleIn .28s cubic-bezier(.16,1,.3,1) both"}}>
       <div className="scroll" style={{flex:1,overflowY:"auto"}}>
         <div style={{position:"relative",height:200}}>
           <Img src={event.img} style={{position:"absolute",inset:0}} alt={event.venue} type="Nightclub" name={event.venue}/>
@@ -3066,7 +3066,7 @@ function ProPaywall({onSelect,onClose}){
       color:"rgba(255,255,255,.03)",border:"rgba(255,255,255,.06)"},
   ];
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",animation:"slideUp .38s cubic-bezier(.16,1,.3,1) both"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden",animation:"slideUp .38s cubic-bezier(.16,1,.3,1) both"}}>
       {/* Header */}
       <div style={{padding:"14px 18px 8px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
         <button className="press" onClick={onClose}
@@ -4102,7 +4102,7 @@ function RevenueDashboard({goBack}){
   const growth=data[5]>data[4]?Math.round((data[5]-data[4])/Math.max(data[4],1)*100):0;
   const avgPerBooking=Math.round(total/Math.max(data.filter(v=>v>0).length*8,1));
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden"}}>
       <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
         <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Revenue</span>
@@ -4166,7 +4166,7 @@ function ProLeaderboard({goBack}){
   const medals=["🥇","🥈","🥉"];
   
   if(selPromo) return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden"}}>
       <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <button className="press" onClick={()=>setSelPromo(null)} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
         <span style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"white"}}>{selPromo.name}</span>
@@ -4214,7 +4214,7 @@ function ProLeaderboard({goBack}){
   );
   
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden"}}>
       <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
         <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Leaderboard</span>
@@ -4257,6 +4257,7 @@ function ProLeaderboard({goBack}){
 
 // ----------------------------------------------- Analytics Dashboard (Real Data) ---------------------------
 function AnalyticsDashboard({goBack}){
+
   const [data,setData]=useState({bookings:[],waitlist:[],venues:[]});
   const [loading,setLoading]=useState(true);
   const [range,setRange]=useState("30d");
@@ -4287,7 +4288,7 @@ function AnalyticsDashboard({goBack}){
   const wlMax=Math.max(...wlChart.map(d=>d.signups||0),1);
 
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden"}}>
       <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
         <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Analytics</span>
@@ -4484,7 +4485,7 @@ function VenueAdmin({goBack}){
   };
 
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)",minHeight:0,overflow:"hidden"}}>
       <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
         <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Admin</span>

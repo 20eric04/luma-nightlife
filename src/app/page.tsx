@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ribyrsrdhskvdmlnpsxk.supabase.co";
 const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYnlyc3JkaHNrdmRtbG5wc3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njc0NDcsImV4cCI6MjA4ODM0MzQ0N30.o1CPKQP1qrvonHJFm7UESuFmgTa3z-BJqePMSVn7ZkI";
+const gold = "#c9a84c";
 
 export default function Home() {
   const [email, setEmail] = useState("");
@@ -11,14 +12,17 @@ export default function Home() {
   const [role, setRole] = useState("guest");
   const [status, setStatus] = useState("idle");
   const [refCode, setRefCode] = useState("");
+  const [count, setCount] = useState(0);
+  const formRef = useRef<HTMLDivElement>(null);
 
-  // Read ?ref= from URL for referral tracking
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get("ref");
       if (ref) setRefCode(ref);
     }
+    fetch(SUPA_URL + "/rest/v1/waitlist?select=id", { headers: { "apikey": SUPA_ANON } })
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setCount(d.length); }).catch(() => {});
   }, []);
 
   const submit = async () => {
@@ -28,156 +32,201 @@ export default function Home() {
       const r = await fetch(SUPA_URL + "/rest/v1/waitlist", {
         method: "POST",
         headers: { "apikey": SUPA_ANON, "Content-Type": "application/json", "Prefer": "return=minimal" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() || null, city, role, referral_source: refCode || null })
+        body: JSON.stringify({ email: email.trim().toLowerCase(), name: name.trim() || null, city, role, referral_source: refCode || null }),
       });
-      if (r.ok || r.status === 201) setStatus("done");
-      else if (r.status === 409) setStatus("exists");
-      else setStatus("error");
-    } catch (e) { setStatus("error"); }
+      setStatus(r.ok ? "done" : "error");
+    } catch { setStatus("error"); }
   };
 
-  const gold = "#c9a84c";
+  const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth" });
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,700;1,700&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; background: #08080c; }
-        ::selection { background: rgba(201,168,76,.3); color: white; }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
-        input:focus { outline:none; border-color: ${gold} !important; }
-        .fade { animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both; }
-        .d1{animation-delay:.1s} .d2{animation-delay:.2s} .d3{animation-delay:.3s}
-        .d4{animation-delay:.4s} .d5{animation-delay:.5s} .d6{animation-delay:.6s}
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,700;1,700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        html{scroll-behavior:smooth}
+        body{background:#08080c;color:white;font-family:'DM Sans',sans-serif}
+        ::selection{background:rgba(201,168,76,.3);color:white}
+        input:focus{outline:none;border-color:${gold}!important}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+        @keyframes glow{0%,100%{opacity:.4}50%{opacity:.7}}
+        .fade{opacity:0;animation:fadeUp .7s cubic-bezier(.16,1,.3,1) forwards}
+        .d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}.d5{animation-delay:.5s}.d6{animation-delay:.6s}
+        .grain{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        .hover-lift{transition:transform .3s,box-shadow .3s}
+        .hover-lift:hover{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+        @media(max-width:768px){.hero-grid{flex-direction:column!important;text-align:center}.features-grid{grid-template-columns:1fr!important}.venue-row{flex-direction:column!important}.mockup-wrap{display:none!important}}
       `}</style>
-      <div style={{ minHeight:"100vh", background:"#08080c", fontFamily:"'DM Sans',sans-serif",
-        color:"white", display:"flex", flexDirection:"column", alignItems:"center",
-        position:"relative", overflow:"hidden" }}>
-        {/* Ambient glow */}
-        <div style={{ position:"fixed", top:-100, right:-80, width:400, height:400, borderRadius:"50%",
-          background:"radial-gradient(circle, rgba(201,168,76,.06), transparent 70%)", pointerEvents:"none" }}/>
-        <div style={{ position:"fixed", bottom:-100, left:-60, width:350, height:350, borderRadius:"50%",
-          background:"radial-gradient(circle, rgba(201,168,76,.04), transparent 70%)", pointerEvents:"none" }}/>
-        <div style={{ position:"relative", zIndex:1, width:"100%", maxWidth:480, padding:"60px 28px 40px" }}>
-          {/* Logo */}
-          <div className="fade d1" style={{ marginBottom:48 }}>
-            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:42, fontWeight:700,
-              fontStyle:"italic", color:gold, letterSpacing:"-.02em" }}>luma</div>
-            <div style={{ width:40, height:2, background:gold, marginTop:8, borderRadius:2 }}/>
-          </div>
-          {status==="done"||status==="exists" ? (
-            <div className="fade" style={{ textAlign:"center", padding:"40px 0" }}>
-              <div style={{ fontSize:48, marginBottom:16, animation:"float 3s ease infinite" }}>
-                {status==="done"?"✨":"👋"}
-              </div>
-              <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, fontWeight:700,
-                fontStyle:"italic", marginBottom:8 }}>
-                {status==="done"?"You're on the list.":"You're already in."}
-              </div>
-              <div style={{ fontSize:14, color:"rgba(255,255,255,.45)", lineHeight:1.7, marginBottom:28 }}>
-                {status==="done"
-                  ? "We'll let you know the moment Luma opens in "+city+". Early access members get first pick."
-                  : "We already have your email — you'll hear from us soon."}
-              </div>
-              <div style={{ padding:"16px 20px", background:"rgba(201,168,76,.06)", border:"1px solid rgba(201,168,76,.15)",
-                borderRadius:16, marginBottom:24 }}>
-                <div style={{ fontSize:11, color:gold, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", marginBottom:6 }}>While you wait</div>
-                <div style={{ fontSize:13, color:"rgba(255,255,255,.5)", lineHeight:1.6 }}>
-                  Follow @luma.rsv on Instagram & TikTok for nightlife content and behind-the-scenes.
-                </div>
-              </div>
-              <div style={{ display:"flex", gap:10, justifyContent:"center" }}>
-                {[["https://instagram.com/luma.rsv","Instagram"],["https://tiktok.com/@luma.rsv","TikTok"]].map(([url,l])=>(
-                  <a key={l} href={url} target="_blank" rel="noopener"
-                    style={{ padding:"10px 20px", background:"rgba(255,255,255,.06)",
-                      border:"1px solid rgba(255,255,255,.1)", borderRadius:12,
-                      fontSize:13, fontWeight:600, color:"white", textDecoration:"none" }}>{l}</a>
-                ))}
-              </div>
+
+      <div className="grain"/>
+
+      {/* Nav */}
+      <nav className="fade" style={{position:"fixed",top:0,left:0,right:0,zIndex:90,padding:"16px 28px",display:"flex",justifyContent:"space-between",alignItems:"center",backdropFilter:"blur(20px)",background:"rgba(8,8,12,.7)",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:700,fontStyle:"italic",color:gold}}>luma</div>
+        <div style={{display:"flex",gap:24,alignItems:"center"}}>
+          <a href="/blog" style={{fontSize:13,color:"rgba(255,255,255,.4)",textDecoration:"none",fontWeight:500}}>Blog</a>
+          <a href="/app" style={{fontSize:13,color:"rgba(255,255,255,.4)",textDecoration:"none",fontWeight:500}}>App</a>
+          <button onClick={scrollToForm} style={{padding:"8px 20px",background:gold,color:"#0a0a0a",border:"none",borderRadius:10,fontSize:12,fontWeight:700,cursor:"pointer"}}>Join Waitlist</button>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"120px 28px 80px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:600,height:600,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,168,76,.08) 0%,transparent 70%)",pointerEvents:"none",animation:"glow 4s ease infinite"}}/>
+        <div className="hero-grid" style={{maxWidth:1100,width:"100%",display:"flex",gap:60,alignItems:"center"}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div className="fade d1" style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:16}}>Miami & New York</div>
+            <h1 className="fade d2" style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(42px,6vw,72px)",fontWeight:700,lineHeight:1.1,marginBottom:20}}>
+              VIP tables in<br/><span style={{fontStyle:"italic",color:gold}}>60 seconds.</span>
+            </h1>
+            <p className="fade d3" style={{fontSize:17,color:"rgba(255,255,255,.45)",lineHeight:1.75,marginBottom:32,maxWidth:440}}>
+              Book bottle service, rooftops, and nightlife with real pricing. No DM negotiations. No surprises at the door.
+            </p>
+            <div className="fade d4" style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <button onClick={scrollToForm} style={{padding:"14px 32px",background:gold,color:"#0a0a0a",border:"none",borderRadius:14,fontSize:15,fontWeight:700,cursor:"pointer",boxShadow:"0 8px 32px rgba(201,168,76,.3)"}}>Join the Waitlist</button>
+              <a href="/app" style={{padding:"14px 28px",background:"rgba(255,255,255,.05)",color:"white",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,fontSize:15,fontWeight:600,textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6}}>Preview App</a>
             </div>
-          ) : (
-            <>
-              <div className="fade d2" style={{ marginBottom:32 }}>
-                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:38, fontWeight:700,
-                  fontStyle:"italic", lineHeight:1.15, marginBottom:12 }}>
-                  VIP tables in<br/>60 seconds.
-                </div>
-                <div style={{ fontSize:15, color:"rgba(255,255,255,.45)", lineHeight:1.7 }}>
-                  Luma is the new way to book bottle service, rooftops, and nightlife in Miami & NYC. Real pricing. Verified promoters. No DM negotiations.
-                </div>
-              </div>
-              <div className="fade d3" style={{ display:"flex", gap:10, marginBottom:32, flexWrap:"wrap" }}>
-                {["Transparent pricing","15% promoter commission","Instant confirmation","Guest check-in"].map(f=>(
-                  <div key={f} style={{ padding:"6px 14px", background:"rgba(201,168,76,.06)",
-                    border:"1px solid rgba(201,168,76,.12)", borderRadius:20, fontSize:11, color:gold, fontWeight:600 }}>{f}</div>
-                ))}
-              </div>
-              {refCode&&<div className="fade d3" style={{background:"rgba(201,168,76,.08)",border:"1px solid rgba(201,168,76,.15)",borderRadius:14,padding:"12px 16px",marginBottom:16,textAlign:"center"}}>
-                <div style={{fontSize:12,fontWeight:700,color:"#c9a84c"}}>🎁 You were referred!</div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:4}}>You and your friend each get $25 off your first booking</div>
-              </div>}
-              <div className="fade d4" style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
-                <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"
-                  style={{ padding:"14px 16px", background:"rgba(255,255,255,.04)",
-                    border:"1.5px solid rgba(255,255,255,.08)", borderRadius:14,
-                    color:"white", fontSize:14, fontFamily:"'DM Sans',sans-serif", transition:"border-color .2s" }}/>
-                <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
-                  placeholder="Email address" onKeyDown={e=>e.key==="Enter"&&submit()}
-                  style={{ padding:"14px 16px", background:"rgba(255,255,255,.04)",
-                    border:"1.5px solid rgba(255,255,255,.08)", borderRadius:14,
-                    color:"white", fontSize:14, fontFamily:"'DM Sans',sans-serif", transition:"border-color .2s" }}/>
-              </div>
-              <div className="fade d4" style={{ display:"flex", gap:8, marginBottom:12 }}>
-                {["Miami","New York"].map(c=>(
-                  <button key={c} onClick={()=>setCity(c)}
-                    style={{ flex:1, padding:"10px", borderRadius:12, border:"1.5px solid",
-                      fontSize:12, fontWeight:600, fontFamily:"'DM Sans',sans-serif", cursor:"pointer",
-                      background:city===c?gold:"rgba(255,255,255,.04)",
-                      borderColor:city===c?gold:"rgba(255,255,255,.08)",
-                      color:city===c?"#0a0a0a":"rgba(255,255,255,.4)", transition:"all .2s" }}>
-                    {c==="Miami"?"🌴 ":"🗽 "}{c}
-                  </button>
-                ))}
-              </div>
-              <div className="fade d4" style={{ display:"flex", gap:8, marginBottom:20 }}>
-                {[["guest","I want to book"],["promoter","I'm a promoter"]].map(([r,l])=>(
-                  <button key={r} onClick={()=>setRole(r)}
-                    style={{ flex:1, padding:"10px", borderRadius:12, border:"1.5px solid",
-                      fontSize:12, fontWeight:600, fontFamily:"'DM Sans',sans-serif", cursor:"pointer",
-                      background:role===r?"rgba(255,255,255,.1)":"rgba(255,255,255,.03)",
-                      borderColor:role===r?"rgba(255,255,255,.2)":"rgba(255,255,255,.06)",
-                      color:role===r?"white":"rgba(255,255,255,.3)", transition:"all .2s" }}>{l}</button>
-                ))}
-              </div>
-              <button className="fade d5" onClick={submit} disabled={status==="loading"||!email.includes("@")}
-                style={{ width:"100%", padding:"16px", borderRadius:16, border:"none",
-                  fontSize:15, fontWeight:700, fontFamily:"'DM Sans',sans-serif",
-                  cursor:email.includes("@")?"pointer":"default",
-                  background:email.includes("@")?gold:"rgba(255,255,255,.06)",
-                  color:email.includes("@")?"#0a0a0a":"rgba(255,255,255,.2)",
-                  transition:"all .25s",
-                  boxShadow:email.includes("@")?"0 8px 32px rgba(201,168,76,.25)":"none" }}>
-                {status==="loading"?"Joining...":"Join the waitlist"}
-              </button>
-              {status==="error"&&<div style={{ marginTop:10, fontSize:12, color:"#ef4444", textAlign:"center" }}>Something went wrong — try again.</div>}
-              <div className="fade d6" style={{ marginTop:24, textAlign:"center" }}>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,.2)" }}>15 venues . 7 promo codes . Launching soon</div>
-              </div>
-            </>
-          )}
-          <div style={{ marginTop:60, paddingTop:20, borderTop:"1px solid rgba(255,255,255,.04)",
-            display:"flex", justifyContent:"space-between" }}>
-            <span style={{ fontSize:10, color:"rgba(255,255,255,.15)" }}>© 2026 Luma · lumarsv.com</span>
-            <div style={{ display:"flex", gap:12 }}>
-              <a href="/blog" style={{ fontSize:10, color:"rgba(255,255,255,.15)", textDecoration:"none" }}>Blog</a>
-              <a href="/terms" style={{ fontSize:10, color:"rgba(255,255,255,.15)", textDecoration:"none" }}>Terms</a>
-              <a href="/privacy" style={{ fontSize:10, color:"rgba(255,255,255,.15)", textDecoration:"none" }}>Privacy</a>
+            {count>0&&<div className="fade d5" style={{marginTop:20,fontSize:12,color:"rgba(255,255,255,.25)"}}>{count} people on the waitlist</div>}
+          </div>
+          <div className="fade d4 mockup-wrap" style={{flexShrink:0,position:"relative"}}>
+            <div style={{width:280,height:560,background:"#111",borderRadius:36,boxShadow:"0 0 0 8px #1c1c1e,0 0 0 9px rgba(255,255,255,.06),0 40px 120px rgba(0,0,0,.6)",overflow:"hidden",position:"relative",animation:"float 6s ease infinite"}}>
+              <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",width:90,height:26,background:"#000",borderRadius:16,zIndex:10}}/>
+              <iframe src="/app" style={{width:"100%",height:"100%",border:"none",borderRadius:36,pointerEvents:"none"}} title="Luma App Preview"/>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Features */}
+      <section style={{padding:"80px 28px"}}>
+        <div style={{maxWidth:1000,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:56}}>
+            <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>Why Luma</div>
+            <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Nightlife booking,<br/><span style={{fontStyle:"italic",color:gold}}>done right.</span></h2>
+          </div>
+          <div className="features-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:20}}>
+            {[
+              ["💰","Transparent Pricing","See real prices upfront. No hidden fees, no surprise minimums, no DM negotiations."],
+              ["✓","Verified Promoters","Every promoter is vetted. Real reviews, real track records, real commissions."],
+              ["⚡","Instant Confirmation","Book in 60 seconds. Get a QR code confirmation immediately."],
+              ["📱","One App, Everything","Browse venues, compare prices, book tables, manage reservations."],
+              ["🎁","Rewards & Credits","$25 for every friend you refer. Promo codes. Loyalty credits."],
+              ["🔒","Secure & Private","Server-side pricing. Tamper-proof bookings. Your data stays yours."],
+            ].map(([ic,title,desc],i)=>(
+              <div key={title as string} className={`hover-lift`} style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:20,padding:"28px 24px"}}>
+                <div style={{fontSize:28,marginBottom:14}}>{ic}</div>
+                <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>{title}</div>
+                <div style={{fontSize:13,color:"rgba(255,255,255,.4)",lineHeight:1.7}}>{desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Venues */}
+      <section style={{padding:"80px 28px",background:"rgba(255,255,255,.02)"}}>
+        <div style={{maxWidth:1000,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:48}}>
+            <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>29 Venues & Counting</div>
+            <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>The best spots in<br/><span style={{fontStyle:"italic",color:gold}}>Miami & NYC.</span></h2>
+          </div>
+          <div className="venue-row" style={{display:"flex",gap:16,marginBottom:16}}>
+            {[
+              {n:"LIV",c:"Miami Beach",p:"$250+",img:"https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=400&h=300&fit=crop"},
+              {n:"E11EVEN",c:"Downtown Miami",p:"$200+",img:"https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=300&fit=crop"},
+              {n:"Marquee",c:"Chelsea NYC",p:"$200+",img:"https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=300&fit=crop"},
+              {n:"Tao Downtown",c:"Chelsea NYC",p:"$250+",img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop"},
+            ].map(v=>(
+              <div key={v.n} className="hover-lift" style={{flex:1,borderRadius:18,overflow:"hidden",background:"#111",border:"1px solid rgba(255,255,255,.06)"}}>
+                <div style={{height:160,backgroundImage:`url(${v.img})`,backgroundSize:"cover",backgroundPosition:"center",position:"relative"}}>
+                  <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.8),transparent 50%)"}}/>
+                  <div style={{position:"absolute",bottom:12,left:14}}>
+                    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700}}>{v.n}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>{v.c} · {v.p}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{textAlign:"center"}}><a href="/app" style={{fontSize:13,color:gold,textDecoration:"none",fontWeight:600}}>Browse all 29 venues →</a></div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section style={{padding:"80px 28px"}}>
+        <div style={{maxWidth:700,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:48}}>
+            <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Book in <span style={{fontStyle:"italic",color:gold}}>three steps.</span></h2>
+          </div>
+          {[["01","Browse","Explore venues by city, type, and price. See reviews and availability."],["02","Book","Pick your table, date, and party size. Apply a promo code. Pay securely."],["03","Show up","Get your QR confirmation. Show it at the door. Enjoy your night."]].map(([num,title,desc])=>(
+            <div key={num} style={{display:"flex",gap:24,marginBottom:32,alignItems:"flex-start"}}>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:gold,lineHeight:1,flexShrink:0,width:60}}>{num}</div>
+              <div><div style={{fontSize:18,fontWeight:700,marginBottom:6}}>{title}</div><div style={{fontSize:14,color:"rgba(255,255,255,.4)",lineHeight:1.7}}>{desc}</div></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Promoters */}
+      <section style={{padding:"60px 28px 80px",background:"rgba(201,168,76,.03)",borderTop:"1px solid rgba(201,168,76,.08)",borderBottom:"1px solid rgba(201,168,76,.08)"}}>
+        <div style={{maxWidth:700,margin:"0 auto",textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:12}}>💎</div>
+          <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:700,marginBottom:12}}>Are you a <span style={{fontStyle:"italic",color:gold}}>promoter?</span></h2>
+          <p style={{fontSize:14,color:"rgba(255,255,255,.4)",lineHeight:1.7,maxWidth:500,margin:"0 auto 24px"}}>Earn 15% commission on every booking. Dashboard, invite links, QR codes, analytics, same-day Stripe payouts.</p>
+          <div style={{display:"flex",gap:20,justifyContent:"center",flexWrap:"wrap",marginBottom:24}}>
+            {[["$2,400/mo","Avg earnings"],["15%","Commission"],["Same-day","Payouts"]].map(([v,l])=>(
+              <div key={l} style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",borderRadius:16,padding:"16px 24px"}}>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:gold}}>{v}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:4}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Waitlist Form */}
+      <section ref={formRef} id="waitlist" style={{padding:"80px 28px",position:"relative"}}>
+        <div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,168,76,.06) 0%,transparent 70%)",pointerEvents:"none"}}/>
+        <div style={{maxWidth:440,margin:"0 auto",textAlign:"center",position:"relative"}}>
+          <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700,marginBottom:8}}>Get <span style={{fontStyle:"italic",color:gold}}>early access.</span></h2>
+          <p style={{fontSize:14,color:"rgba(255,255,255,.4)",lineHeight:1.7,marginBottom:32}}>Priority access, exclusive promos, and $25 off your first booking.</p>
+          {refCode&&<div style={{background:"rgba(201,168,76,.08)",border:"1px solid rgba(201,168,76,.15)",borderRadius:14,padding:"12px 16px",marginBottom:20}}><div style={{fontSize:12,fontWeight:700,color:gold}}>🎁 You were referred! $25 off for both of you</div></div>}
+          {status==="done"?(
+            <div style={{background:"rgba(201,168,76,.08)",border:"1px solid rgba(201,168,76,.2)",borderRadius:20,padding:"32px 24px"}}>
+              <div style={{fontSize:36,marginBottom:12}}>✨</div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,marginBottom:8}}>You&apos;re on the list.</div>
+              <div style={{fontSize:13,color:"rgba(255,255,255,.4)",lineHeight:1.7}}>We&apos;ll email you when Luma launches in {city}.</div>
+              <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:20}}>
+                <a href="/app" style={{padding:"10px 22px",background:gold,color:"#0a0a0a",textDecoration:"none",borderRadius:12,fontSize:12,fontWeight:700}}>Preview App</a>
+                <a href="https://instagram.com/luma.rsv" style={{padding:"10px 22px",background:"rgba(255,255,255,.06)",color:"white",textDecoration:"none",borderRadius:12,fontSize:12,fontWeight:600,border:"1px solid rgba(255,255,255,.08)"}}>Instagram</a>
+              </div>
+            </div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" style={{padding:"14px 18px",background:"rgba(255,255,255,.04)",border:"1.5px solid rgba(255,255,255,.08)",borderRadius:14,color:"white",fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" onKeyDown={e=>e.key==="Enter"&&submit()} style={{padding:"14px 18px",background:"rgba(255,255,255,.04)",border:"1.5px solid rgba(255,255,255,.08)",borderRadius:14,color:"white",fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+              <div style={{display:"flex",gap:8}}>
+                {["Miami","New York"].map(c=><button key={c} onClick={()=>setCity(c)} style={{flex:1,padding:"12px",borderRadius:12,border:"1.5px solid",fontSize:12,fontWeight:600,cursor:"pointer",background:city===c?gold:"rgba(255,255,255,.04)",borderColor:city===c?gold:"rgba(255,255,255,.08)",color:city===c?"#0a0a0a":"rgba(255,255,255,.4)"}}>{c==="Miami"?"🌴 ":"🗽 "}{c}</button>)}
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                {[["guest","I want to book"],["promoter","I'm a promoter"]].map(([r,l])=><button key={r} onClick={()=>setRole(r as string)} style={{flex:1,padding:"12px",borderRadius:12,border:"1.5px solid",fontSize:12,fontWeight:600,cursor:"pointer",background:role===r?"rgba(255,255,255,.1)":"rgba(255,255,255,.03)",borderColor:role===r?"rgba(255,255,255,.2)":"rgba(255,255,255,.06)",color:role===r?"white":"rgba(255,255,255,.35)"}}>{l}</button>)}
+              </div>
+              <button onClick={submit} disabled={status==="loading"} style={{padding:"16px",background:gold,color:"#0a0a0a",border:"none",borderRadius:14,fontSize:15,fontWeight:700,cursor:status==="loading"?"not-allowed":"pointer",opacity:status==="loading"?.6:1,boxShadow:"0 8px 32px rgba(201,168,76,.25)"}}>{status==="loading"?"Joining...":"Join the Waitlist"}</button>
+              {status==="error"&&<div style={{fontSize:12,color:"#ef4444"}}>Something went wrong. Try again.</div>}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <footer style={{padding:"32px 28px",borderTop:"1px solid rgba(255,255,255,.04)"}}>
+        <div style={{maxWidth:1000,margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
+          <div><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,fontStyle:"italic",color:gold,marginBottom:4}}>luma</div><div style={{fontSize:10,color:"rgba(255,255,255,.15)"}}>© 2026 Luma · lumarsv.com</div></div>
+          <div style={{display:"flex",gap:20}}>{[["Blog","/blog"],["App","/app"],["Terms","/terms"],["Privacy","/privacy"]].map(([l,h])=><a key={l} href={h as string} style={{fontSize:12,color:"rgba(255,255,255,.2)",textDecoration:"none"}}>{l}</a>)}</div>
+          <div style={{display:"flex",gap:12}}><a href="https://instagram.com/luma.rsv" style={{fontSize:12,color:"rgba(255,255,255,.2)",textDecoration:"none"}}>Instagram</a><a href="https://tiktok.com/@luma.rsv" style={{fontSize:12,color:"rgba(255,255,255,.2)",textDecoration:"none"}}>TikTok</a></div>
+        </div>
+      </footer>
     </>
   );
 }
