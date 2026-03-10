@@ -1,9 +1,31 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ribyrsrdhskvdmlnpsxk.supabase.co";
 const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYnlyc3JkaHNrdmRtbG5wc3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njc0NDcsImV4cCI6MjA4ODM0MzQ0N30.o1CPKQP1qrvonHJFm7UESuFmgTa3z-BJqePMSVn7ZkI";
 const gold = "#c9a84c";
+
+// Typewriter component
+function Typewriter({ words, speed = 80, deleteSpeed = 40, waitTime = 2000 }: { words: string[], speed?: number, deleteSpeed?: number, waitTime?: number }) {
+  const [text, setText] = useState("");
+  const [wordIdx, setWordIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+  useEffect(() => {
+    const current = words[wordIdx];
+    const t = setTimeout(() => {
+      if (!deleting) {
+        if (charIdx < current.length) { setText(current.slice(0, charIdx + 1)); setCharIdx(c => c + 1); }
+        else { setTimeout(() => setDeleting(true), waitTime); }
+      } else {
+        if (charIdx > 0) { setText(current.slice(0, charIdx - 1)); setCharIdx(c => c - 1); }
+        else { setDeleting(false); setWordIdx(w => (w + 1) % words.length); }
+      }
+    }, deleting ? deleteSpeed : speed);
+    return () => clearTimeout(t);
+  }, [charIdx, deleting, wordIdx, words, speed, deleteSpeed, waitTime]);
+  return <>{text}<span style={{borderRight:"2px solid "+gold,marginLeft:2,animation:"blink 1s step-end infinite"}}>&nbsp;</span></>;
+}
 
 export default function Home() {
   const [email, setEmail] = useState("");
@@ -52,6 +74,7 @@ export default function Home() {
         @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
         @keyframes glow{0%,100%{opacity:.4}50%{opacity:.7}}
+        @keyframes blink{from,to{border-color:${gold}}50%{border-color:transparent}}
         .fade{opacity:0;animation:fadeUp .7s cubic-bezier(.16,1,.3,1) forwards}
         .d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}.d5{animation-delay:.5s}.d6{animation-delay:.6s}
         .grain{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -79,7 +102,7 @@ export default function Home() {
           <div style={{flex:1,minWidth:0}}>
             <div className="fade d1" style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:16}}>Miami & New York</div>
             <h1 className="fade d2" style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(42px,6vw,72px)",fontWeight:700,lineHeight:1.1,marginBottom:20}}>
-              VIP tables in<br/><span style={{fontStyle:"italic",color:gold}}>60 seconds.</span>
+              Book <span style={{fontStyle:"italic",color:gold}}><Typewriter words={["VIP tables","bottle service","rooftops","pool parties","the best night out"]} speed={70} deleteSpeed={35} waitTime={1800}/></span><br/>in 60 seconds.
             </h1>
             <p className="fade d3" style={{fontSize:17,color:"rgba(255,255,255,.45)",lineHeight:1.75,marginBottom:32,maxWidth:440}}>
               Book bottle service, rooftops, and nightlife with real pricing. No DM negotiations. No surprises at the door.
@@ -122,6 +145,19 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Stats Bar */}
+      <section style={{padding:"48px 28px",borderTop:"1px solid rgba(255,255,255,.04)",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+        <div style={{maxWidth:900,margin:"0 auto",display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:24}}>
+          {[["29","Venues","Miami & NYC"],["60s","Booking Time","Average"],["15%","Commission","For promoters"],["$25","Referral Credit","Per friend"],["24/7","Support","Always on"]].map(([num,label,sub])=>(
+            <div key={label} style={{textAlign:"center",minWidth:100}}>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:36,fontWeight:700,color:gold}}>{num}</div>
+              <div style={{fontSize:12,fontWeight:600,color:"white",marginTop:2}}>{label}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,.25)",marginTop:2}}>{sub}</div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -180,6 +216,34 @@ export default function Home() {
               <div key={l} style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",borderRadius:16,padding:"16px 24px"}}>
                 <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:gold}}>{v}</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:4}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof */}
+      <section style={{padding:"60px 28px"}}>
+        <div style={{maxWidth:900,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:40}}>
+            <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>What People Say</div>
+            <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:700}}>Built for the <span style={{fontStyle:"italic",color:gold}}>culture.</span></h2>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:16}}>
+            {[
+              {q:"Finally an app that shows real prices. No more DMing 5 different promoters for quotes.",n:"Sophia R.",c:"Miami Beach",r:"Guest"},
+              {q:"I made $3,200 last month just from my invite links. The dashboard makes it easy to track everything.",n:"Nate S.",c:"Miami",r:"Promoter"},
+              {q:"Booked a table at Marquee in 60 seconds. Got my QR code instantly. This is how it should work.",n:"Tyler W.",c:"New York",r:"Guest"},
+            ].map(t=>(
+              <div key={t.n} style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:18,padding:"24px 22px"}}>
+                <div style={{fontSize:13,color:"rgba(255,255,255,.55)",lineHeight:1.7,marginBottom:16,fontStyle:"italic"}}>"{t.q}"</div>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:36,height:36,borderRadius:"50%",background:"rgba(201,168,76,.15)",border:"1.5px solid rgba(201,168,76,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:gold,fontFamily:"'Cormorant Garamond',serif"}}>{t.n[0]}</div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600}}>{t.n}</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>{t.c} · {t.r}</div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
