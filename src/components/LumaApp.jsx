@@ -834,506 +834,178 @@ function Explore({go,city="Miami"}){
 }
 
 function MapScreen({go,city="Miami"}){
-  const W=390,H=430;
   const metro=city==="New York"?"New York":"Miami";
   const {venues:cityVenues}=useVenues(metro);
   const filters=["All","Rooftop","Nightclub","Lounge","Pool Party"];
-
-  // Map center per city
-  const DEF={
-    "Miami":    {lat:25.774, lng:-80.190, s:3400},
-    "New York": {lat:40.748, lng:-73.990, s:3400},
-  };
-  const {lat:CY,lng:CX,s:S0}=DEF[metro];
-
-  const [scale,setScale]=useState(S0);
-  const [pan,setPan]=useState({x:0,y:0});
-  const [sel,setSel]=useState(null);
   const [filter,setFilter]=useState("All");
-  const sR=useRef(S0),pR=useRef({x:0,y:0}),dragR=useRef(null),pinchR=useRef(null),svgEl=useRef(null);
+  const [sel,setSel]=useState(null);
+  const mapRef=useRef(null);
+  const mapInst=useRef(null);
+  const markersRef=useRef([]);
+  const {distanceTo}=useGeo();
 
+  const centers={"Miami":[25.783,-80.150],"New York":[40.748,-73.990]};
+  const display=cityVenues.length?cityVenues:VENUES.filter(v=>v.metro===metro);
+  const filtered=filter==="All"?display:display.filter(v=>v.type===filter);
+
+  // Load Leaflet and create map
   useEffect(()=>{
-    sR.current=S0;pR.current={x:0,y:0};
-    setScale(S0);setPan({x:0,y:0});setSel(null);setFilter("All");
-  },[city]);
+    if(!mapRef.current||typeof window==="undefined") return;
+    
+    // Inject Leaflet CSS if not present
+    if(!document.getElementById("leaflet-css")){
+      const link=document.createElement("link");
+      link.id="leaflet-css";
+      link.rel="stylesheet";
+      link.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
 
-  // Project lat/lng -> SVG xy
-  const pr=(lat,lng,s,p)=>{
-    const sc=s??scale,pp=p??pan;
-    return{x:W/2+(lng-CX)*sc+pp.x, y:H/2-(lat-CY)*sc+pp.y};
-  };
-  const pts2d=(arr,s,p)=>arr.map(([la,ln],i)=>{const{x,y}=pr(la,ln,s,p);return(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);}).join('');
-  const pts2p=(arr,s,p)=>pts2d(arr,s,p)+'Z';
+    // Load Leaflet JS if not present
+    const initMap=()=>{
+      if(mapInst.current){mapInst.current.remove();mapInst.current=null;}
+      const L=window.L;
+      if(!L) return;
+      
+      const center=centers[metro]||centers["Miami"];
+      const map=L.map(mapRef.current,{
+        center,zoom:13,zoomControl:false,attributionControl:false
+      });
 
-  // Zoom
-  const doZoom=(dz,sx=0,sy=0)=>{
-    const s0=sR.current,s1=Math.max(2600,Math.min(12000,s0*Math.pow(1.35,dz)));
-    const r=s1/s0,p=pR.current;
-    const np={x:(p.x-sx)*r+sx,y:(p.y-sy)*r+sy};
-    sR.current=s1;pR.current=np;setScale(s1);setPan({...np});
-  };
+      // Dark tile layer that matches the app aesthetic
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
+        maxZoom:19,
+      }).addTo(map);
 
-  // Events
+      // Zoom control bottom right
+      L.control.zoom({position:"bottomright"}).addTo(map);
+
+      mapInst.current=map;
+    };
+
+    if(window.L){
+      initMap();
+    }else{
+      const script=document.createElement("script");
+      script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload=initMap;
+      document.head.appendChild(script);
+    }
+
+    return()=>{if(mapInst.current){mapInst.current.remove();mapInst.current=null;}};
+  },[metro]);
+
+  // Update markers when filtered venues change
   useEffect(()=>{
-    const el=svgEl.current;if(!el)return;
-    const ts=e=>{
-      if(e.touches.length===1){
-        const t=e.touches[0];dragR.current={cx:t.clientX,cy:t.clientY,px:pR.current.x,py:pR.current.y};pinchR.current=null;
-      }else if(e.touches.length===2){
-        dragR.current=null;
-        const[a,b]=[e.touches[0],e.touches[1]];
-        const d=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
-        const r=el.getBoundingClientRect();
-        pinchR.current={d,mx:(a.clientX+b.clientX)/2-r.left-W/2,my:(a.clientY+b.clientY)/2-r.top-H/2,s:sR.current,p:{...pR.current}};
-      }
-      e.preventDefault();
-    };
-    const tm=e=>{
-      if(e.touches.length===1&&dragR.current){
-        const t=e.touches[0];
-        const np={x:dragR.current.px+(t.clientX-dragR.current.cx),y:dragR.current.py+(t.clientY-dragR.current.cy)};
-        pR.current=np;setPan({...np});
-      }else if(e.touches.length===2&&pinchR.current){
-        const[a,b]=[e.touches[0],e.touches[1]];
-        const d=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
-        const r=d/pinchR.current.d;
-        const s1=Math.max(2600,Math.min(12000,pinchR.current.s*r));
-        const rv=s1/pinchR.current.s,{mx,my,p}=pinchR.current;
-        const np={x:(p.x-mx)*rv+mx,y:(p.y-my)*rv+my};
-        sR.current=s1;pR.current=np;setScale(s1);setPan({...np});
-      }
-      e.preventDefault();
-    };
-    const te=()=>{dragR.current=null;pinchR.current=null;};
-    const md=e=>{dragR.current={cx:e.clientX,cy:e.clientY,px:pR.current.x,py:pR.current.y};};
-    const wh=e=>{
-      const r=el.getBoundingClientRect();
-      doZoom(e.deltaY<0?1:-1,e.clientX-r.left-W/2,e.clientY-r.top-H/2);
-      e.preventDefault();
-    };
-    el.addEventListener("mousedown",md);
-    el.addEventListener("touchstart",ts,{passive:false});
-    el.addEventListener("touchmove",tm,{passive:false});
-    el.addEventListener("touchend",te);
-    el.addEventListener("wheel",wh,{passive:false});
-    return()=>{
-      el.removeEventListener("mousedown",md);
-      el.removeEventListener("touchstart",ts);
-      el.removeEventListener("touchmove",tm);
-      el.removeEventListener("touchend",te);
-      el.removeEventListener("wheel",wh);
-    };
+    if(!mapInst.current||!window.L) return;
+    const L=window.L;
+    
+    // Clear old markers
+    markersRef.current.forEach(m=>m.remove());
+    markersRef.current=[];
+
+    filtered.forEach(v=>{
+      if(!v.lat||!v.lng) return;
+      const dist=distanceTo?.(v.lat,v.lng);
+      
+      // Custom gold price marker
+      const icon=L.divIcon({
+        className:"",
+        html:`<div style="background:#0a0a0a;border:2px solid #c9a84c;color:white;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.5);display:flex;align-items:center;gap:4px;cursor:pointer;transform:translate(-50%,-50%)"><span style="color:#c9a84c">$${v.price_min||v.price||100}</span><span style="font-size:8px;color:rgba(255,255,255,.4)">+</span></div>`,
+        iconSize:[0,0],
+        iconAnchor:[0,0],
+      });
+
+      const marker=L.marker([v.lat,v.lng],{icon}).addTo(mapInst.current);
+      
+      // Popup with venue card
+      const popupHtml=`
+        <div style="background:#0a0a0a;color:white;border-radius:14px;overflow:hidden;width:220px;font-family:'DM Sans',sans-serif;border:1px solid rgba(255,255,255,.1)">
+          <div style="height:100px;background:linear-gradient(160deg,#1e0533,#6d28d9);position:relative">
+            <div style="position:absolute;bottom:8px;left:10px">
+              <div style="font-size:14px;font-weight:700">${v.name}</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.5)">${v.type} · ${v.city||""}</div>
+            </div>
+          </div>
+          <div style="padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div style="display:flex;gap:2px">${"★★★★★".split("").map((_,i)=>`<span style="color:${i<Math.floor(v.rating||4.5)?"#c9a84c":"#333"};font-size:10px">★</span>`).join("")}</div>
+              <span style="font-size:13px;font-weight:700;color:#c9a84c">$${v.price_min||v.price||100}+</span>
+            </div>
+            <div style="font-size:10px;color:rgba(255,255,255,.35)">${dist?dist+" mi away":"📍 "+(v.city||metro)}</div>
+          </div>
+        </div>`;
+      
+      marker.bindPopup(popupHtml,{className:"luma-popup",closeButton:false,offset:[0,-5]});
+      marker.on("click",()=>setSel(v));
+      markersRef.current.push(marker);
+    });
+
+    // Fit bounds if we have markers
+    if(markersRef.current.length>1){
+      const group=L.featureGroup(markersRef.current);
+      mapInst.current.fitBounds(group.getBounds().pad(0.1));
+    }
+  },[filtered,distanceTo]);
+
+  // Inject popup styles
+  useEffect(()=>{
+    if(document.getElementById("luma-map-styles")) return;
+    const style=document.createElement("style");
+    style.id="luma-map-styles";
+    style.textContent=`.luma-popup .leaflet-popup-content-wrapper{background:transparent;box-shadow:none;padding:0;border-radius:14px}.luma-popup .leaflet-popup-content{margin:0;width:auto!important}.luma-popup .leaflet-popup-tip{border-top-color:#0a0a0a}`;
+    document.head.appendChild(style);
   },[]);
-
-  useEffect(()=>{
-    const mm=e=>{
-      if(!dragR.current)return;
-      const np={x:dragR.current.px+(e.clientX-dragR.current.cx),y:dragR.current.py+(e.clientY-dragR.current.cy)};
-      pR.current=np;setPan({...np});
-    };
-    const mu=()=>{dragR.current=null;};
-    window.addEventListener("mousemove",mm);
-    window.addEventListener("mouseup",mu);
-    return()=>{window.removeEventListener("mousemove",mm);window.removeEventListener("mouseup",mu);};
-  },[]);
-
-  const flyTo=(lat,lng)=>{
-    const goal={x:-(lng-CX)*sR.current,y:(lat-CY)*sR.current};
-    const from={...pR.current};
-    let t0=null;
-    const step=ts=>{
-      if(!t0)t0=ts;
-      const t=Math.min(1,(ts-t0)/480);
-      const e=1-(1-t)**3;
-      const np={x:from.x+(goal.x-from.x)*e,y:from.y+(goal.y-from.y)*e};
-      pR.current=np;setPan({...np});
-      if(t<1)requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  };
-
-  // ----------------------------------------------- MAP DATA -------------------------------------------------
-  // All coordinates are [lat, lng]
-  const MIAMI={
-    // Water bodies - carefully traced outlines
-    water:[
-      // Biscayne Bay (between mainland and Miami Beach)
-      {id:"bay",pts:[
-        [25.706,-80.168],[25.706,-80.133],[25.720,-80.126],[25.736,-80.122],
-        [25.752,-80.120],[25.769,-80.120],[25.786,-80.122],[25.803,-80.125],
-        [25.820,-80.128],[25.838,-80.133],[25.855,-80.140],[25.855,-80.155],
-        [25.840,-80.152],[25.820,-80.148],[25.800,-80.145],[25.780,-80.143],
-        [25.760,-80.142],[25.742,-80.143],[25.726,-80.148],[25.712,-80.158],
-      ],label:{la:25.780,ln:-80.150,t:"Biscayne Bay"}},
-      // Atlantic Ocean (east of Miami Beach)
-      {id:"ocean",pts:[
-        [25.706,-80.122],[25.706,-80.065],[25.855,-80.065],[25.855,-80.100],
-        [25.840,-80.096],[25.820,-80.093],[25.800,-80.091],[25.780,-80.091],
-        [25.760,-80.092],[25.742,-80.094],[25.726,-80.100],[25.712,-80.112],
-      ],label:{la:25.780,ln:-80.082,t:"Atlantic Ocean"}},
-      // Government Cut / Port Miami
-      {id:"cut",pts:[
-        [25.758,-80.157],[25.758,-80.128],[25.762,-80.128],[25.762,-80.157],
-      ]},
-    ],
-    // Parks & green areas
-    parks:[
-      {id:"bayfront",pts:[[25.774,-80.189],[25.774,-80.183],[25.779,-80.183],[25.779,-80.189]]},
-      {id:"southpointe",pts:[[25.757,-80.138],[25.757,-80.130],[25.762,-80.130],[25.762,-80.138]]},
-      {id:"lummus",pts:[[25.778,-80.132],[25.778,-80.128],[25.800,-80.128],[25.800,-80.132]]},
-      {id:"key",pts:[[25.740,-80.260],[25.740,-80.245],[25.751,-80.245],[25.751,-80.260]]},
-    ],
-    // Highways (thick, yellow)
-    hwys:[
-      {id:"i95",pts:[[25.706,-80.210],[25.740,-80.209],[25.760,-80.208],[25.790,-80.207],[25.820,-80.207],[25.850,-80.207]]},
-      {id:"836",pts:[[25.772,-80.240],[25.772,-80.210],[25.773,-80.192],[25.774,-80.180],[25.776,-80.165],[25.779,-80.152]]},
-      {id:"mac",pts:[[25.774,-80.195],[25.775,-80.180],[25.776,-80.162],[25.775,-80.148],[25.773,-80.135],[25.770,-80.128]]},
-      {id:"julia",pts:[[25.806,-80.195],[25.807,-80.180],[25.808,-80.163],[25.807,-80.148],[25.805,-80.136],[25.803,-80.128]]},
-      {id:"395",pts:[[25.774,-80.195],[25.770,-80.175],[25.763,-80.160],[25.757,-80.148]]},
-    ],
-    // Major roads (white, thick)
-    roads:[
-      {id:"biscblvd",pts:[[25.706,-80.187],[25.730,-80.187],[25.752,-80.187],[25.775,-80.186],[25.800,-80.186],[25.825,-80.186],[25.850,-80.186]]},
-      {id:"miami2ave",pts:[[25.706,-80.199],[25.750,-80.199],[25.775,-80.199],[25.800,-80.199],[25.825,-80.199],[25.850,-80.200]]},
-      {id:"collinsa",pts:[[25.757,-80.131],[25.770,-80.129],[25.785,-80.127],[25.800,-80.126],[25.820,-80.124],[25.840,-80.122]]},
-      {id:"oceandrive",pts:[[25.757,-80.134],[25.770,-80.132],[25.783,-80.131],[25.793,-80.130]]},
-      {id:"flagler",pts:[[25.774,-80.245],[25.774,-80.225],[25.774,-80.205],[25.774,-80.187],[25.774,-80.175]]},
-      {id:"sw8",pts:[[25.765,-80.245],[25.765,-80.225],[25.765,-80.205],[25.765,-80.190]]},
-      {id:"nw36",pts:[[25.815,-80.240],[25.815,-80.215],[25.815,-80.200],[25.815,-80.188]]},
-      {id:"41st",pts:[[25.796,-80.145],[25.797,-80.132],[25.797,-80.125]]},
-      {id:"5th",pts:[[25.823,-80.215],[25.823,-80.200],[25.823,-80.188]]},
-    ],
-    // Minor streets (light, thin) - denser grid feel
-    minor:[
-      // N-S streets downtown/brickell area
-      ...[[-80.195],[-80.193],[-80.191],[-80.189]].map(([ln],i)=>({id:"ns"+i,pts:[[25.706,ln],[25.775,ln]]})),
-      // Brickell cross streets
-      ...[25.742,25.748,25.754,25.760,25.766].map((la,i)=>({id:"bk"+i,pts:[[la,-80.210],[la,-80.186]]})),
-      // Wynwood area
-      ...[25.795,25.799,25.803,25.808].map((la,i)=>({id:"wy"+i,pts:[[la,-80.218],[la,-80.192]]})),
-      // Miami Beach cross streets
-      ...[25.768,25.775,25.783,25.793,25.800,25.810].map((la,i)=>({id:"mb"+i,pts:[[la,-80.145],[la,-80.125]]})),
-    ],
-    // Neighborhood labels
-    labels:[
-      {la:25.758,ln:-80.195,t:"Brickell"},
-      {la:25.775,ln:-80.215,t:"Downtown"},
-      {la:25.803,ln:-80.212,t:"Wynwood"},
-      {la:25.770,ln:-80.131,t:"South Beach"},
-      {la:25.797,ln:-80.128,t:"Mid Beach"},
-      {la:25.745,ln:-80.265,t:"Coral Gables"},
-      {la:25.820,ln:-80.193,t:"Little Haiti"},
-      {la:25.748,ln:-80.232,t:"Coconut Grove"},
-    ],
-  };
-
-  const NYC={
-    water:[
-      // Hudson River
-      {id:"hudson",pts:[
-        [40.694,-74.033],[40.720,-74.033],[40.748,-74.032],[40.770,-74.031],[40.781,-74.030],
-        [40.781,-74.020],[40.770,-74.020],[40.748,-74.020],[40.720,-74.020],[40.694,-74.020],
-      ],label:{la:40.745,ln:-74.026,t:"Hudson River"}},
-      // East River
-      {id:"east",pts:[
-        [40.694,-73.982],[40.720,-73.978],[40.748,-73.975],[40.770,-73.972],[40.781,-73.970],
-        [40.781,-73.958],[40.770,-73.960],[40.748,-73.963],[40.720,-73.967],[40.694,-73.972],
-      ],label:{la:40.745,ln:-73.966,t:"East River"}},
-      // Upper New York Bay
-      {id:"bay",pts:[
-        [40.677,-74.033],[40.694,-74.033],[40.694,-74.002],[40.688,-73.998],[40.677,-73.995],
-      ]},
-    ],
-    parks:[
-      // Central Park - accurate rectangle
-      {id:"cp",pts:[[40.7644,-73.9818],[40.7994,-73.9818],[40.7994,-73.9583],[40.7644,-73.9583]]},
-      {id:"battery",pts:[[40.700,-74.020],[40.706,-74.020],[40.706,-74.013],[40.700,-74.013]]},
-      {id:"union",pts:[[40.734,-73.992],[40.737,-73.992],[40.737,-73.988],[40.734,-73.988]]},
-      {id:"riverside",pts:[[40.780,-73.989],[40.795,-73.989],[40.795,-73.987],[40.780,-73.987]]},
-    ],
-    hwys:[
-      {id:"westsidehwy",pts:[[40.694,-74.018],[40.720,-74.017],[40.748,-74.015],[40.770,-74.013],[40.781,-74.012]]},
-      {id:"fdr",pts:[[40.700,-73.975],[40.720,-73.972],[40.748,-73.967],[40.770,-73.963],[40.781,-73.960]]},
-      {id:"bklyn",pts:[[40.706,-73.999],[40.703,-73.987]]},
-      {id:"manhattan",pts:[[40.713,-73.999],[40.710,-73.982]]},
-    ],
-    roads:[
-      // Avenues (N-S)
-      {id:"8th",pts:[[40.700,-74.000],[40.730,-74.000],[40.755,-74.000],[40.770,-74.001]]},
-      {id:"7th",pts:[[40.700,-73.997],[40.730,-73.997],[40.755,-73.996],[40.768,-73.997]]},
-      {id:"bway",pts:[[40.706,-74.010],[40.720,-74.003],[40.740,-73.995],[40.755,-73.988],[40.770,-73.982],[40.781,-73.977]]},
-      {id:"5th",pts:[[40.700,-73.990],[40.730,-73.990],[40.756,-73.990],[40.770,-73.990]]},
-      {id:"madison",pts:[[40.700,-73.988],[40.730,-73.987],[40.756,-73.987],[40.770,-73.987]]},
-      {id:"park",pts:[[40.700,-73.984],[40.730,-73.984],[40.756,-73.983],[40.770,-73.984]]},
-      {id:"lex",pts:[[40.700,-73.981],[40.730,-73.981],[40.756,-73.981],[40.770,-73.981]]},
-      {id:"3rd",pts:[[40.700,-73.978],[40.730,-73.977],[40.756,-73.978],[40.770,-73.978]]},
-      // Streets (E-W)
-      {id:"14th",pts:[[40.738,-74.010],[40.737,-73.990],[40.736,-73.972]]},
-      {id:"23rd",pts:[[40.745,-74.003],[40.744,-73.990],[40.743,-73.972]]},
-      {id:"34th",pts:[[40.750,-74.003],[40.750,-73.985],[40.749,-73.970]]},
-      {id:"42nd",pts:[[40.756,-74.003],[40.756,-73.982],[40.756,-73.960]]},
-      {id:"57th",pts:[[40.764,-74.003],[40.764,-73.980],[40.763,-73.960]]},
-      {id:"72nd",pts:[[40.773,-73.995],[40.773,-73.980],[40.773,-73.963]]},
-      {id:"86th",pts:[[40.783,-73.990],[40.782,-73.974],[40.782,-73.957]]},
-      {id:"96th",pts:[[40.791,-73.990],[40.790,-73.975],[40.789,-73.961]]},
-    ],
-    minor:[
-      ...[40.716,40.721,40.727,40.732,40.740,40.747,40.760,40.768,40.776].map((la,i)=>({id:"st"+i,pts:[[la,-74.005],[la,-73.974]]})),
-    ],
-    labels:[
-      {la:40.782,ln:-73.972,t:"Upper West Side"},
-      {la:40.782,ln:-73.947,t:"Upper East Side"},
-      {la:40.758,ln:-73.985,t:"Midtown"},
-      {la:40.742,ln:-73.999,t:"Chelsea"},
-      {la:40.742,ln:-73.983,t:"Gramercy"},
-      {la:40.730,ln:-73.998,t:"Village"},
-      {la:40.723,ln:-73.997,t:"SoHo"},
-      {la:40.706,ln:-74.009,t:"Tribeca"},
-      {la:40.706,ln:-73.993,t:"Lower Manhattan"},
-    ],
-  };
-
-  const feat=metro==="New York"?NYC:MIAMI;
-  const filteredVenues=filter==="All"?cityVenues:cityVenues.filter(v=>v.type===filter);
-  const uLat=metro==="New York"?40.7505:25.776,uLng=metro==="New York"?-73.9934:-80.192;
-  const uPos=pr(uLat,uLng);
-  const rw=Math.max(1,scale/2600); // road width scales with zoom
 
   return(
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",background:"var(--bg)"}}>
-      <div style={{padding:"4px 18px 10px",flexShrink:0}}>
-        <div style={{fontFamily:"var(--fd)",fontSize:26,fontWeight:700,color:"var(--ink)",marginBottom:9}}>Nearby</div>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--bg)",minHeight:0,overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{padding:"6px 18px 8px",flexShrink:0}}>
+        <div style={{fontFamily:"var(--fd)",fontSize:22,fontWeight:700,color:"var(--ink)",marginBottom:8}}>Nearby</div>
         <div className="hscroll" style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingBottom:1}}>
           {filters.map(f=>(
-            <button key={f} onClick={()=>{setFilter(f);setSel(null);}} className="press"
-              style={{flexShrink:0,padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:600,
-                fontFamily:"var(--fb)",border:"1.5px solid",cursor:"pointer",transition:"all .15s",
-                background:filter===f?"var(--ink)":"transparent",
+            <button key={f} onClick={()=>setFilter(f)} className="press"
+              style={{padding:"6px 14px",borderRadius:18,border:"1.5px solid",fontSize:11,fontWeight:600,
+                fontFamily:"var(--fb)",cursor:"pointer",flexShrink:0,transition:"all .15s",
+                background:filter===f?"var(--ink)":"var(--white)",
                 borderColor:filter===f?"var(--ink)":"var(--line2)",
-                color:filter===f?"white":"var(--ink2)"}}>
+                color:filter===f?"white":"var(--sub)"}}>
               {f}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Map container */}
       <div style={{flex:1,position:"relative",overflow:"hidden"}}>
-        <svg ref={svgEl} width="100%" height="100%" viewBox={"0 0 "+W+" "+H}
-          style={{display:"block",cursor:"grab",touchAction:"none",userSelect:"none",background:"#f5f1e8"}}>
-          <defs>
-            <clipPath id="mapclip"><rect width={W} height={H}/></clipPath>
-          </defs>
-          <g clipPath="url(#mapclip)">
-
-          {/* Land base */}
-          <rect width={W} height={H} fill="#f5f1e8"/>
-
-          {/* Block fill - subtle checker for urban feel */}
-          <rect width={W} height={H} fill="url(#blockfill)" opacity={0.3}/>
-
-          {/* Parks */}
-          {feat.parks.map(pk=>(
-            <path key={pk.id} d={pts2p(pk.pts)} fill="#c8e6a0" stroke="#aad580" strokeWidth={0.5}/>
-          ))}
-
-          {/* Water */}
-          {feat.water.map(w=>(
-            <path key={w.id} d={pts2p(w.pts)} fill="#aacfe8" stroke="#90bfd8" strokeWidth={0.8}/>
-          ))}
-
-          {/* Minor streets - very subtle */}
-          {feat.minor.map(r=>{
-            const d=pts2d(r.pts);
-            if(!d)return null;
-            return(<path key={r.id} d={d} fill="none" stroke="#e8e4dc" strokeWidth={Math.max(0.6,rw*0.8)} strokeLinecap="round"/>);
-          })}
-
-          {/* Major road casings (border effect) */}
-          {feat.roads.map(r=>(
-            <path key={"c"+r.id} d={pts2d(r.pts)} fill="none"
-              stroke="#ddd8cc" strokeWidth={Math.max(2,rw*2.8)} strokeLinecap="round"/>
-          ))}
-          {/* Major roads */}
-          {feat.roads.map(r=>(
-            <path key={r.id} d={pts2d(r.pts)} fill="none"
-              stroke="white" strokeWidth={Math.max(1.2,rw*2)} strokeLinecap="round"/>
-          ))}
-
-          {/* Highway casings */}
-          {feat.hwys.map(h=>(
-            <path key={"hc"+h.id} d={pts2d(h.pts)} fill="none"
-              stroke="#e8c84a" strokeWidth={Math.max(3.5,rw*4.5)} strokeLinecap="round" opacity={0.5}/>
-          ))}
-          {/* Highways */}
-          {feat.hwys.map(h=>(
-            <path key={h.id} d={pts2d(h.pts)} fill="none"
-              stroke="#f7d94c" strokeWidth={Math.max(2.5,rw*3.2)} strokeLinecap="round"/>
-          ))}
-
-          {/* Water labels */}
-          {feat.water.filter(w=>w.label).map(w=>{
-            const{x,y}=pr(w.label.la,w.label.ln);
-            if(x<0||x>W||y<0||y>H)return null;
-            return(
-              <text key={"wl"+w.id} x={x} y={y} textAnchor="middle"
-                fill="#5a8fa8" fontSize={Math.max(7,9*scale/S0)} fontStyle="italic"
-                fontFamily="'DM Sans',sans-serif" fontWeight="500" opacity={0.85}>
-                {w.label.t}
-              </text>
-            );
-          })}
-
-          {/* Neighborhood labels */}
-          {feat.labels.map((l,i)=>{
-            const{x,y}=pr(l.la,l.ln);
-            if(x<-20||x>W+20||y<-20||y>H+20)return null;
-            return(
-              <text key={"nl"+i} x={x} y={y} textAnchor="middle"
-                fill="#9a9488" fontSize={Math.max(6,8*scale/S0)}
-                fontFamily="'DM Sans',sans-serif" fontWeight="600"
-                letterSpacing="0.04em" textTransform="uppercase">
-                {l.t.toUpperCase()}
-              </text>
-            );
-          })}
-
-          {/* Venue markers */}
-          {filteredVenues.map(v=>{
-            const{x,y}=pr(v.lat,v.lng);
-            if(x<-60||x>W+60||y<-60||y>H+60)return null;
-            const active=sel?.id===v.id;
-            const pw=38,ph=22,pr2=11;
-            return(
-              <g key={v.id} style={{cursor:"pointer"}}
-                onMouseDown={e=>e.stopPropagation()}
-                onClick={e=>{e.stopPropagation();const a=!active;setSel(a?v:null);if(a)flyTo(v.lat,v.lng);}}>
-                {/* Shadow */}
-                <rect x={x-pw/2+1} y={y-ph-9+3} width={pw} height={ph} rx={pr2}
-                  fill="rgba(0,0,0,.14)" filter="blur(2px)"/>
-                {/* Bubble */}
-                <rect x={x-pw/2} y={y-ph-9} width={pw} height={ph} rx={pr2}
-                  fill={active?"#0a0a0a":"white"}
-                  stroke={active?"none":"rgba(0,0,0,.12)"} strokeWidth={1}/>
-                {/* Caret */}
-                <polygon points={`${x-5},${y-10} ${x+5},${y-10} ${x},${y-3}`}
-                  fill={active?"#0a0a0a":"white"}/>
-                {/* Price text */}
-                <text x={x} y={y-ph/2-9+8} textAnchor="middle"
-                  fill={active?"white":"#0a0a0a"}
-                  fontSize={active?11:10.5} fontWeight="700"
-                  fontFamily="'DM Sans',sans-serif">
-                  {"$"+v.price+"+"}
-                </text>
-                {/* Hot badge */}
-                {v.hot&&!active&&(
-                  <circle cx={x+pw/2-4} cy={y-ph-9+4} r={4.5} fill="#ef4444"/>
-                )}
-              </g>
-            );
-          })}
-
-          {/* User location */}
-          <circle cx={uPos.x} cy={uPos.y} r={11} fill="rgba(59,130,246,.18)"/>
-          <circle cx={uPos.x} cy={uPos.y} r={6} fill="#3b82f6" stroke="white" strokeWidth={2.5}/>
-
-          </g>
-        </svg>
-
-        {/* Zoom controls */}
-        <div style={{position:"absolute",right:12,top:12,zIndex:20,
-          display:"flex",flexDirection:"column",
-          boxShadow:"0 2px 12px rgba(0,0,0,.15)",borderRadius:11,overflow:"hidden"}}>
-          {[["＋",1],["－",-1]].map(([lbl,dz])=>(
-            <button key={lbl}
-              onMouseDown={e=>e.stopPropagation()}
-              onClick={e=>{e.stopPropagation();doZoom(dz);}}
-              style={{width:36,height:36,background:"rgba(255,255,255,.96)",border:"none",
-                borderBottom:lbl==="＋"?"1px solid rgba(0,0,0,.08)":"none",
-                fontSize:16,fontWeight:400,color:"#0a0a0a",cursor:"pointer",
-                display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}}>
-              {lbl}
-            </button>
-          ))}
+        <div ref={mapRef} style={{position:"absolute",inset:0}}/>
+        
+        {/* Venue count badge */}
+        <div style={{position:"absolute",top:10,left:10,zIndex:500,background:"rgba(10,10,12,.85)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,padding:"6px 12px",display:"flex",alignItems:"center",gap:6}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:"#4ade80"}}/>
+          <span style={{fontSize:11,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>{filtered.length} venues</span>
         </div>
+      </div>
 
-        {/* Recenter button */}
-        <button
-          onMouseDown={e=>e.stopPropagation()}
-          onClick={e=>{e.stopPropagation();sR.current=S0;pR.current={x:0,y:0};setScale(S0);setPan({x:0,y:0});setSel(null);}}
-          style={{position:"absolute",left:12,top:12,zIndex:20,
-            width:36,height:36,borderRadius:"50%",
-            background:"rgba(255,255,255,.96)",border:"none",
-            boxShadow:"0 2px 12px rgba(0,0,0,.15)",
-            cursor:"pointer",fontSize:16,backdropFilter:"blur(8px)",
-            display:"flex",alignItems:"center",justifyContent:"center"}}>
-          🎯
-        </button>
-
-        {/* Selected venue popup */}
-        {sel&&(
-          <div style={{position:"absolute",bottom:14,left:12,right:12,zIndex:30,
-            background:"white",borderRadius:20,padding:"13px 14px",
-            boxShadow:"0 12px 40px rgba(0,0,0,.2)",
-            animation:"slideUp .22s cubic-bezier(.16,1,.3,1) both",
-            display:"flex",gap:12,alignItems:"center"}}
-            onMouseDown={e=>e.stopPropagation()}>
-            <div style={{width:58,height:58,borderRadius:14,overflow:"hidden",flexShrink:0}}>
-              <Img src={sel.img} style={{width:"100%",height:"100%"}} alt={sel.name} type={sel.type} name={sel.name}/>
-            </div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:700,color:"var(--ink)",fontFamily:"var(--fb)",marginBottom:2}}>{sel.name}</div>
-              <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:5}}>{"📍 "+sel.city+" . "+sel.type+" . "+sel.distance}</div>
-              <Stars r={sel.rating}/>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:7,alignItems:"flex-end",flexShrink:0}}>
-              <div style={{fontFamily:"var(--fd)",fontSize:17,fontWeight:700}}>{"$"+sel.price+"+"}</div>
-              <button onClick={()=>go("venue",sel)} className="press"
-                style={{padding:"7px 14px",background:"var(--ink)",color:"white",border:"none",
-                  borderRadius:20,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>
-                Reserve →
-              </button>
-            </div>
-            <button onClick={()=>setSel(null)}
-              style={{position:"absolute",top:10,right:10,width:22,height:22,
-                borderRadius:"50%",background:"#f0ede8",border:"none",cursor:"pointer",
-                fontSize:10,color:"#666",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>
-              ✕
-            </button>
+      {/* Selected venue card */}
+      {sel&&(
+        <div style={{position:"absolute",bottom:70,left:14,right:14,zIndex:500,background:"var(--white)",border:"1px solid var(--line)",borderRadius:18,padding:"12px 14px",boxShadow:"0 12px 40px rgba(0,0,0,.15)",display:"flex",gap:12,alignItems:"center",animation:"slideUp .25s cubic-bezier(.16,1,.3,1) both"}}>
+          <Img src={sel.img||sel.img_url} style={{width:56,height:56,borderRadius:14,flexShrink:0}} alt={sel.name} type={sel.type} name={sel.name}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"var(--fb)",fontSize:14,fontWeight:700,color:"var(--ink)"}}>{sel.name}</div>
+            <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:2}}>📍 {sel.city||""} · {sel.type} · ${sel.price_min||sel.price}+</div>
+            <Stars r={sel.rating||4.5}/>
           </div>
-        )}
-      </div>
-
-      {/* Venue strip */}
-      <div style={{flexShrink:0,borderTop:"1px solid var(--line)",background:"white",padding:"10px 0 8px"}}>
-        <div className="hscroll" style={{display:"flex",gap:9,overflowX:"auto",scrollbarWidth:"none",paddingLeft:16,paddingRight:16}}>
-          {filteredVenues.map(v=>(
-            <div key={v.id} className="press"
-              onClick={()=>{setSel(v);flyTo(v.lat,v.lng);}}
-              style={{flexShrink:0,width:118,borderRadius:14,overflow:"hidden",cursor:"pointer",
-                border:"1.5px solid "+(sel?.id===v.id?"var(--ink)":"var(--line)"),
-                background:"white",transition:"border-color .15s"}}>
-              <div style={{position:"relative",height:70}}>
-                <Img src={v.img} style={{position:"absolute",inset:0}} alt={v.name} type={v.type} name={v.name}/>
-                <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.6),transparent 55%)"}}/>
-                <div style={{position:"absolute",bottom:5,left:7,fontSize:9,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>
-                  {"$"+v.price+"+"}
-                </div>
-                {v.hot&&<div style={{position:"absolute",top:5,right:6,
-                  fontSize:8,background:"rgba(239,68,68,.85)",color:"white",
-                  borderRadius:9,padding:"1px 6px",fontWeight:700,fontFamily:"var(--fb)"}}>🔥</div>}
-              </div>
-              <div style={{padding:"6px 8px"}}>
-                <div style={{fontSize:10,fontWeight:700,color:"var(--ink)",fontFamily:"var(--fb)",
-                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{v.name}</div>
-                <div style={{fontSize:8,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:1}}>{v.type}</div>
-              </div>
-            </div>
-          ))}
+          <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
+            <button onClick={()=>go("venue",sel)} className="press" style={{padding:"8px 14px",background:"var(--ink)",color:"white",border:"none",borderRadius:10,fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Book</button>
+            <button onClick={()=>setSel(null)} style={{background:"none",border:"none",fontSize:9,color:"var(--dim)",cursor:"pointer",fontFamily:"var(--fb)"}}>Close</button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
+
 
 function Bookings({go,refreshKey,localBookings=[]}){
   const [qrBooking,setQrBooking]=useState(null);
