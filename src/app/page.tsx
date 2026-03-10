@@ -75,12 +75,15 @@ export default function Home() {
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
         @keyframes glow{0%,100%{opacity:.4}50%{opacity:.7}}
         @keyframes blink{from,to{border-color:${gold}}50%{border-color:transparent}}
+        @keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        @keyframes countUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes shimmerBg{0%{background-position:200% 0}100%{background-position:-200% 0}}
         .fade{opacity:0;animation:fadeUp .7s cubic-bezier(.16,1,.3,1) forwards}
         .d1{animation-delay:.1s}.d2{animation-delay:.2s}.d3{animation-delay:.3s}.d4{animation-delay:.4s}.d5{animation-delay:.5s}.d6{animation-delay:.6s}
         .grain{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
         .hover-lift{transition:transform .3s,box-shadow .3s}
         .hover-lift:hover{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,.4)}
-        @media(max-width:768px){.hero-grid{flex-direction:column!important;text-align:center}.features-grid{grid-template-columns:1fr!important}.venue-row{flex-direction:column!important}.mockup-wrap{display:none!important}}
+        @media(max-width:768px){.hero-grid{flex-direction:column!important;text-align:center}.features-grid{grid-template-columns:1fr!important}.venue-row{flex-direction:column!important}.mockup-wrap{display:none!important}.compare-grid{grid-template-columns:1.5fr 1fr 1fr 1fr!important;font-size:11px!important}}
       `}</style>
 
       <div className="grain"/>
@@ -97,7 +100,12 @@ export default function Home() {
 
       {/* Hero */}
       <section style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"120px 28px 80px",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:"20%",left:"50%",transform:"translateX(-50%)",width:600,height:600,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,168,76,.08) 0%,transparent 70%)",pointerEvents:"none",animation:"glow 4s ease infinite"}}/>
+        {/* Animated gradient orbs */}
+        <div style={{position:"absolute",top:"10%",left:"20%",width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,168,76,.07) 0%,transparent 70%)",pointerEvents:"none",animation:"glow 4s ease infinite",filter:"blur(40px)"}}/>
+        <div style={{position:"absolute",bottom:"10%",right:"15%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(109,40,217,.05) 0%,transparent 70%)",pointerEvents:"none",animation:"glow 5s ease infinite 1s",filter:"blur(50px)"}}/>
+        <div style={{position:"absolute",top:"50%",left:"60%",width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,168,76,.04) 0%,transparent 70%)",pointerEvents:"none",animation:"glow 6s ease infinite 2s",filter:"blur(30px)"}}/>
+        {/* Grid lines for depth */}
+        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px)",backgroundSize:"60px 60px",pointerEvents:"none",maskImage:"radial-gradient(ellipse at center,black 30%,transparent 70%)"}}/>
         <div className="hero-grid" style={{maxWidth:1100,width:"100%",display:"flex",gap:60,alignItems:"center"}}>
           <div style={{flex:1,minWidth:0}}>
             <div className="fade d1" style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:16}}>Miami & New York</div>
@@ -108,15 +116,57 @@ export default function Home() {
               Book bottle service, rooftops, and nightlife with real pricing. No DM negotiations. No surprises at the door.
             </p>
             <div className="fade d4" style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-              <button onClick={scrollToForm} style={{padding:"14px 32px",background:gold,color:"#0a0a0a",border:"none",borderRadius:14,fontSize:15,fontWeight:700,cursor:"pointer",boxShadow:"0 8px 32px rgba(201,168,76,.3)"}}>Join the Waitlist</button>
+              <button onClick={scrollToForm} style={{padding:"14px 32px",background:`linear-gradient(90deg,${gold},#e8d48b,${gold})`,backgroundSize:"200% auto",animation:"shimmerBg 3s linear infinite",color:"#0a0a0a",border:"none",borderRadius:14,fontSize:15,fontWeight:700,cursor:"pointer",boxShadow:"0 8px 32px rgba(201,168,76,.3)",position:"relative",overflow:"hidden"}}>Join the Waitlist</button>
               <a href="/app" style={{padding:"14px 28px",background:"rgba(255,255,255,.05)",color:"white",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,fontSize:15,fontWeight:600,textDecoration:"none",display:"inline-flex",alignItems:"center",gap:6}}>Preview App</a>
             </div>
             {count>0&&<div className="fade d5" style={{marginTop:20,fontSize:12,color:"rgba(255,255,255,.25)"}}>{count} people on the waitlist</div>}
           </div>
           <div className="fade d4 mockup-wrap" style={{flexShrink:0,position:"relative"}}>
-            <div style={{width:280,height:560,background:"#111",borderRadius:36,boxShadow:"0 0 0 8px #1c1c1e,0 0 0 9px rgba(255,255,255,.06),0 40px 120px rgba(0,0,0,.6)",overflow:"hidden",position:"relative",animation:"float 6s ease infinite"}}>
+            <div style={{width:280,height:560,background:"#f5f4f0",borderRadius:36,boxShadow:"0 0 0 8px #1c1c1e,0 0 0 9px rgba(255,255,255,.06),0 40px 120px rgba(0,0,0,.6)",overflow:"hidden",position:"relative",animation:"float 6s ease infinite"}}>
               <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",width:90,height:26,background:"#000",borderRadius:16,zIndex:10}}/>
-              <iframe src="/app" style={{width:"100%",height:"100%",border:"none",borderRadius:36,pointerEvents:"none"}} title="Luma App Preview"/>
+              {/* Static app preview */}
+              <div style={{padding:"52px 18px 0",height:"100%",display:"flex",flexDirection:"column"}}>
+                <div style={{fontSize:9,color:"rgba(0,0,0,.4)",fontFamily:"'DM Sans',sans-serif",marginBottom:2}}>📍 Miami, FL</div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontStyle:"italic",color:"#0a0a0a",marginBottom:12}}>Good evening, Eric</div>
+                <div style={{height:130,borderRadius:14,background:"linear-gradient(135deg,#1e0533,#6d28d9)",position:"relative",marginBottom:14,overflow:"hidden"}}>
+                  <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"10px 12px",background:"linear-gradient(to top,rgba(0,0,0,.7),transparent)"}}>
+                    <div style={{fontSize:8,color:"rgba(255,255,255,.5)"}}>🔥 Featured Tonight</div>
+                    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:"white"}}>LIV</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
+                      <span style={{fontSize:8,color:"rgba(255,255,255,.5)"}}>Miami Beach · 0.5 mi</span>
+                      <span style={{background:"white",color:"#0a0a0a",padding:"3px 10px",borderRadius:12,fontSize:8,fontWeight:700}}>Reserve →</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontWeight:700,color:"#0a0a0a",marginBottom:8}}>Hot Right Now</div>
+                <div style={{display:"flex",gap:8}}>
+                  {[{n:"LIV",c:"#6d28d9",p:"$250+"},{n:"E11EVEN",c:"#1d4ed8",p:"$200+"},{n:"Story",c:"#92400e",p:"$300+"}].map(v=>(
+                    <div key={v.n} style={{width:80,borderRadius:10,overflow:"hidden",background:"white",border:"1px solid rgba(0,0,0,.06)",flexShrink:0}}>
+                      <div style={{height:55,background:`linear-gradient(135deg,${v.c},${v.c}88)`,position:"relative"}}>
+                        <div style={{position:"absolute",bottom:4,left:6}}><div style={{fontSize:8,fontWeight:700,color:"white"}}>{v.n}</div></div>
+                      </div>
+                      <div style={{padding:"4px 6px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:7,color:"#999"}}>★★★★★</span>
+                        <span style={{fontSize:8,fontWeight:700}}>{v.p}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontWeight:700,color:"#0a0a0a",marginTop:12,marginBottom:6}}>All Venues</div>
+                {[{n:"Nikki Beach",t:"Pool Party",p:"$100+"},{n:"Club Space",t:"Nightclub",p:"$80+"}].map(v=>(
+                  <div key={v.n} style={{display:"flex",gap:8,padding:"6px 8px",background:"white",border:"1px solid rgba(0,0,0,.06)",borderRadius:10,marginBottom:5}}>
+                    <div style={{width:36,height:36,borderRadius:8,background:"linear-gradient(135deg,#1e3a5f,#0ea5e9)",flexShrink:0}}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:10,fontWeight:700}}>{v.n}</div>
+                      <div style={{fontSize:7,color:"#999"}}>{v.t} · {v.p}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Tab bar */}
+              <div style={{position:"absolute",bottom:0,left:0,right:0,display:"flex",justifyContent:"space-around",padding:"8px 0 18px",background:"rgba(245,244,240,.97)",borderTop:"1px solid rgba(0,0,0,.06)"}}>
+                {["🏠","🔍","🗺","👥","🎟","👤"].map((ic,i)=><span key={i} style={{fontSize:14,opacity:i===0?1:.35}}>{ic}</span>)}
+              </div>
             </div>
           </div>
         </div>
@@ -147,6 +197,21 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Infinite Venue Marquee */}
+      <div style={{overflow:"hidden",borderTop:"1px solid rgba(255,255,255,.04)",borderBottom:"1px solid rgba(255,255,255,.04)",padding:"20px 0",position:"relative"}}>
+        <div style={{position:"absolute",left:0,top:0,bottom:0,width:80,background:"linear-gradient(to right,#08080c,transparent)",zIndex:2}}/>
+        <div style={{position:"absolute",right:0,top:0,bottom:0,width:80,background:"linear-gradient(to left,#08080c,transparent)",zIndex:2}}/>
+        <div style={{display:"flex",animation:"marquee 25s linear infinite",width:"max-content"}}>
+          {[...Array(2)].map((_,rep)=>(
+            <div key={rep} style={{display:"flex",gap:32,paddingRight:32}}>
+              {["LIV","E11EVEN","Story","Club Space","Marquee","Tao Downtown","Nikki Beach","Delilah","PHD Rooftop","Avant Gardner","1 OAK","Fleur Room","Hyde Beach","Bâoli","Swan","Komodo"].map(n=>(
+                <span key={n+rep} style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,fontStyle:"italic",color:"rgba(255,255,255,.12)",whiteSpace:"nowrap",letterSpacing:".02em"}}>{n}</span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Stats Bar */}
       <section style={{padding:"48px 28px",borderTop:"1px solid rgba(255,255,255,.04)",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
@@ -222,31 +287,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Social Proof */}
-      <section style={{padding:"60px 28px"}}>
-        <div style={{maxWidth:900,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:40}}>
-            <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>What People Say</div>
-            <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:700}}>Built for the <span style={{fontStyle:"italic",color:gold}}>culture.</span></h2>
+      {/* Comparison Table */}
+      <section style={{padding:"80px 28px"}}>
+        <div style={{maxWidth:800,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:48}}>
+            <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>Why Switch</div>
+            <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Luma vs the <span style={{fontStyle:"italic",color:gold}}>old way.</span></h2>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:16}}>
+          <div style={{borderRadius:20,overflow:"hidden",border:"1px solid rgba(255,255,255,.08)"}}>
+            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",background:"rgba(255,255,255,.04)"}}>
+              <div style={{padding:"14px 20px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)"}}></div>
+              <div style={{padding:"14px 16px",textAlign:"center",borderLeft:"1px solid rgba(255,255,255,.06)"}}><div style={{fontSize:13,fontWeight:700,color:gold}}>Luma</div></div>
+              <div style={{padding:"14px 16px",textAlign:"center",borderLeft:"1px solid rgba(255,255,255,.06)"}}><div style={{fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)"}}>DM a Promoter</div></div>
+              <div style={{padding:"14px 16px",textAlign:"center",borderLeft:"1px solid rgba(255,255,255,.06)"}}><div style={{fontSize:13,fontWeight:600,color:"rgba(255,255,255,.4)"}}>Walk Up</div></div>
+            </div>
             {[
-              {q:"Finally an app that shows real prices. No more DMing 5 different promoters for quotes.",n:"Sophia R.",c:"Miami Beach",r:"Guest"},
-              {q:"I made $3,200 last month just from my invite links. The dashboard makes it easy to track everything.",n:"Nate S.",c:"Miami",r:"Promoter"},
-              {q:"Booked a table at Marquee in 60 seconds. Got my QR code instantly. This is how it should work.",n:"Tyler W.",c:"New York",r:"Guest"},
-            ].map(t=>(
-              <div key={t.n} style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:18,padding:"24px 22px"}}>
-                <div style={{fontSize:13,color:"rgba(255,255,255,.55)",lineHeight:1.7,marginBottom:16,fontStyle:"italic"}}>"{t.q}"</div>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:36,height:36,borderRadius:"50%",background:"rgba(201,168,76,.15)",border:"1.5px solid rgba(201,168,76,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:gold,fontFamily:"'Cormorant Garamond',serif"}}>{t.n[0]}</div>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:600}}>{t.n}</div>
-                    <div style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>{t.c} · {t.r}</div>
-                  </div>
-                </div>
+              ["See real prices upfront","✓","✗","✗"],
+              ["Book in under 60 seconds","✓","✗","✗"],
+              ["Instant QR confirmation","✓","✗","✗"],
+              ["Verified promoters","✓","?","—"],
+              ["No surprise fees at door","✓","✗","✗"],
+              ["Cancel up to 48hrs free","✓","Depends","✗"],
+              ["Compare venues & prices","✓","✗","✗"],
+              ["Earn referral credits","✓","✗","✗"],
+            ].map(([feat,luma,dm,walk],i)=>(
+              <div key={feat} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",borderTop:"1px solid rgba(255,255,255,.06)",background:i%2===0?"transparent":"rgba(255,255,255,.015)"}}>
+                <div style={{padding:"12px 20px",fontSize:13,color:"rgba(255,255,255,.6)"}}>{feat}</div>
+                <div style={{padding:"12px 16px",textAlign:"center",borderLeft:"1px solid rgba(255,255,255,.06)",fontSize:14,color:luma==="✓"?"#4ade80":"rgba(255,255,255,.3)"}}>{luma}</div>
+                <div style={{padding:"12px 16px",textAlign:"center",borderLeft:"1px solid rgba(255,255,255,.06)",fontSize:14,color:dm==="✗"?"#f87171":dm==="?"?"#fbbf24":"rgba(255,255,255,.3)"}}>{dm}</div>
+                <div style={{padding:"12px 16px",textAlign:"center",borderLeft:"1px solid rgba(255,255,255,.06)",fontSize:14,color:walk==="✗"?"#f87171":"rgba(255,255,255,.3)"}}>{walk}</div>
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section style={{padding:"60px 28px 80px",background:"rgba(255,255,255,.02)"}}>
+        <div style={{maxWidth:700,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:48}}>
+            <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>FAQ</div>
+            <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Questions? <span style={{fontStyle:"italic",color:gold}}>Answered.</span></h2>
+          </div>
+          {[
+            ["How does Luma work?","Browse venues in Miami & NYC, pick a table, select your date and party size, and book instantly. You get a QR confirmation code to show at the door. No DMs, no callbacks, no surprises."],
+            ["How much does it cost?","Luma is free to use for guests. Prices shown are the venue's table minimum. We charge a 10% platform fee included in the total. No hidden charges."],
+            ["What if I need to cancel?","Free cancellation up to 48 hours before your event. After that, cancellation policies vary by venue. Refunds process within 5-7 business days."],
+            ["How do promoters earn money?","Promoters earn 15% commission on every booking made through their invite link. Same-day Stripe payouts. No caps, no catches."],
+            ["Which cities are available?","We're launching in Miami and New York City with 29 venues across both cities. More cities coming soon."],
+            ["Is my payment secure?","Yes. Payments are processed through Stripe. We never see or store your credit card details. All pricing is calculated server-side to prevent tampering."],
+          ].map(([q,a])=>(
+            <details key={q} style={{marginBottom:12,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:16,overflow:"hidden"}}>
+              <summary style={{padding:"18px 22px",fontSize:15,fontWeight:600,color:"white",cursor:"pointer",listStyle:"none",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                {q}<span style={{color:gold,fontSize:18,flexShrink:0,marginLeft:12}}>+</span>
+              </summary>
+              <div style={{padding:"0 22px 18px",fontSize:13,color:"rgba(255,255,255,.45)",lineHeight:1.8}}>{a}</div>
+            </details>
+          ))}
         </div>
       </section>
 
