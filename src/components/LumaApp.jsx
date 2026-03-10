@@ -1873,7 +1873,7 @@ function ProCard({children,style={},onClick}){
   return <div onClick={onClick} className={onClick?"press":""} style={{background:P.bg,border:P.border,borderRadius:16,...style}}>{children}</div>;
 }
 
-function ProDash({setTab,userName="Promoter",proData,onAdmin,onRevenue,onLeaderboard}){
+function ProDash({setTab,userName="Promoter",proData,onAdmin,onRevenue,onLeaderboard,onAnalytics}){
   const [showPaywall,setShowPaywall]=useState(false);
   const guests=proData?.guests||GUESTS;
   const payouts=proData?.payouts||PAYOUTS;
@@ -1931,11 +1931,12 @@ function ProDash({setTab,userName="Promoter",proData,onAdmin,onRevenue,onLeaderb
         {/* Quick nav */}
         <div style={{fontFamily:"var(--fd)",fontSize:16,fontWeight:700,color:"white",marginBottom:9}}>Quick Actions</div>
         <div style={{display:"flex",flexDirection:"column",gap:7,paddingBottom:90}}>
-          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"],["🏢","Manage Venues","Add + edit venues & events","admin"],["📈","Revenue","Charts, breakdown, export","revenue"],["🏆","Leaderboard","Rankings, profiles, socials","leaderboard"],["📥","Export CSV","Download guest & booking data","export"]].map(([ic,l,s,t])=>(
+          {[["👥","Guest List","5 confirmed . 2 arrived","guests"],["🔗","Invite Links","264 clicks . 14 booked","links"],["📊","Analytics","Clicks & conversions","analytics"],["💰","Payouts","$"+earned+" earned","payouts"],["💬","Messages","2 unread","messages"],["⚙️","Pricing","Set table minimums","pricing"],["🏢","Manage Venues","Add + edit venues & events","admin"],["📈","Revenue","Charts, breakdown, export","revenue"],["🏆","Leaderboard","Rankings, profiles, socials","leaderboard"],["📥","Export CSV","Download guest & booking data","export"],["📊","Full Analytics","Bookings, waitlist, venues","analyticsDash"]].map(([ic,l,s,t])=>(
             <ProCard key={l} onClick={()=>{
               if(t==="admin")onAdmin&&onAdmin();
               else if(t==="revenue")onRevenue&&onRevenue();
               else if(t==="leaderboard")onLeaderboard&&onLeaderboard();
+              else if(t==="analyticsDash")onAnalytics&&onAnalytics();
               else if(t==="export"){exportCSV(guests.map(g=>({name:g.name,table:g.table,party:g.party,status:g.status,paid:"$"+g.paid})),"luma-guests.csv");alert("CSV downloaded!");}
               else setTab(t);
             }} style={{padding:"11px 13px"}}>
@@ -4254,6 +4255,143 @@ function ProLeaderboard({goBack}){
   );
 }
 
+// ----------------------------------------------- Analytics Dashboard (Real Data) ---------------------------
+function AnalyticsDashboard({goBack}){
+  const [data,setData]=useState({bookings:[],waitlist:[],venues:[]});
+  const [loading,setLoading]=useState(true);
+  const [range,setRange]=useState("30d");
+
+  useEffect(()=>{
+    const sess=getSession();
+    const headers={"apikey":SUPA_ANON};
+    if(sess?.access_token) headers["Authorization"]="Bearer "+sess.access_token;
+    Promise.all([
+      fetch(SUPA_URL+"/rest/v1/booking_analytics?order=day.desc&limit=30",{headers}).then(r=>r.json()).catch(()=>[]),
+      fetch(SUPA_URL+"/rest/v1/waitlist_analytics?order=day.desc&limit=30",{headers}).then(r=>r.json()).catch(()=>[]),
+      fetch(SUPA_URL+"/rest/v1/venue_performance?order=total_bookings.desc&limit=10",{headers}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([b,w,v])=>{
+      setData({bookings:Array.isArray(b)?b:[],waitlist:Array.isArray(w)?w:[],venues:Array.isArray(v)?v:[]});
+    }).finally(()=>setLoading(false));
+  },[]);
+
+  const totalBookings=data.bookings.reduce((s,d)=>s+(d.total_bookings||0),0);
+  const totalRevenue=data.bookings.reduce((s,d)=>s+(d.revenue||0),0);
+  const totalGuests=data.bookings.reduce((s,d)=>s+(d.unique_guests||0),0);
+  const totalWaitlist=data.waitlist.reduce((s,d)=>s+(d.signups||0),0);
+  const totalReferred=data.waitlist.reduce((s,d)=>s+(d.referred||0),0);
+  const avgBooking=totalBookings>0?Math.round(totalRevenue/totalBookings):0;
+  const platformFees=data.bookings.reduce((s,d)=>s+(d.platform_fees||0),0);
+
+  // Waitlist chart data (last 14 days)
+  const wlChart=data.waitlist.slice(0,14).reverse();
+  const wlMax=Math.max(...wlChart.map(d=>d.signups||0),1);
+
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"var(--pro)"}}>
+      <div style={{padding:"10px 18px 8px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button className="press" onClick={goBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,.07)",border:"none",cursor:"pointer",fontSize:16,color:"white",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+        <span style={{fontFamily:"var(--fd)",fontSize:20,fontWeight:700,color:"white",flex:1}}>Analytics</span>
+        <button className="press" onClick={()=>exportCSV([
+          {metric:"Total Bookings",value:totalBookings},
+          {metric:"Revenue (cents)",value:totalRevenue},
+          {metric:"Platform Fees (cents)",value:platformFees},
+          {metric:"Unique Guests",value:totalGuests},
+          {metric:"Avg Booking (cents)",value:avgBooking},
+          {metric:"Waitlist Signups",value:totalWaitlist},
+          {metric:"Referred Signups",value:totalReferred},
+        ],"luma-analytics.csv")} style={{padding:"6px 12px",background:"rgba(255,255,255,.07)",border:"none",borderRadius:9,fontSize:10,color:"rgba(255,255,255,.4)",fontFamily:"var(--fb)",cursor:"pointer"}}>📥 Export</button>
+      </div>
+      <div className="scroll" style={{flex:1,overflowY:"auto",padding:"0 18px"}}>
+        {loading?<div style={{color:"rgba(255,255,255,.3)",fontFamily:"var(--fb)",fontSize:12,padding:40,textAlign:"center"}}>Loading analytics...</div>:(
+          <>
+            {/* Key metrics */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+              {[
+                [totalBookings,"Bookings","🎟","Total confirmed bookings"],
+                ["$"+(totalRevenue/100).toFixed(0),"Revenue","💰","Gross booking revenue"],
+                [totalGuests,"Guests","👥","Unique guests who booked"],
+                ["$"+(avgBooking/100).toFixed(0),"Avg Booking","🎯","Average booking value"],
+                [totalWaitlist,"Waitlist","📋","Total waitlist signups"],
+                [totalReferred,"Referred","🎁","Signups from referrals"],
+              ].map(([v,l,ic,detail])=>(
+                <ProCard key={l} style={{padding:"12px",textAlign:"center"}}>
+                  <div style={{fontSize:14,marginBottom:3}}>{ic}</div>
+                  <div style={{fontFamily:"var(--fd)",fontSize:18,fontWeight:700,color:"white"}}>{v}</div>
+                  <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)",marginTop:2}}>{l}</div>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,.18)",fontFamily:"var(--fb)",marginTop:2}}>{detail}</div>
+                </ProCard>
+              ))}
+            </div>
+
+            {/* Waitlist growth chart */}
+            {wlChart.length>0&&(
+              <ProCard style={{padding:"16px",marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)",marginBottom:4}}>Waitlist Growth</div>
+                <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)",marginBottom:12}}>Daily signups — last {wlChart.length} days</div>
+                <div style={{display:"flex",alignItems:"flex-end",gap:4,height:80}}>
+                  {wlChart.map((d,i)=>(
+                    <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                      <div style={{fontSize:7,color:"var(--gold)",fontFamily:"var(--fb)"}}>{d.signups||0}</div>
+                      <div style={{width:"100%",background:"var(--gold)",borderRadius:3,height:Math.max(2,(d.signups||0)/wlMax*60),opacity:i===wlChart.length-1?1:.4}}/>
+                    </div>
+                  ))}
+                </div>
+              </ProCard>
+            )}
+
+            {/* City split */}
+            {totalWaitlist>0&&(
+              <ProCard style={{padding:"14px",marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)",marginBottom:10}}>City Breakdown</div>
+                {[["Miami",data.waitlist.reduce((s,d)=>s+(d.miami||0),0),"🌴"],["New York",data.waitlist.reduce((s,d)=>s+(d.nyc||0),0),"🗽"]].map(([city,count,ic])=>{
+                  const pct=totalWaitlist>0?Math.round(count/totalWaitlist*100):0;
+                  return(
+                    <div key={city} style={{marginBottom:8}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                        <span style={{fontSize:11,color:"white",fontFamily:"var(--fb)"}}>{ic} {city}</span>
+                        <span style={{fontSize:11,color:P.sub,fontFamily:"var(--fb)"}}>{count} ({pct}%)</span>
+                      </div>
+                      <div style={{height:6,background:"rgba(255,255,255,.06)",borderRadius:3,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:pct+"%",background:"var(--gold)",borderRadius:3,transition:"width .4s"}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </ProCard>
+            )}
+
+            {/* Top venues */}
+            {data.venues.length>0&&(
+              <ProCard style={{padding:"14px",marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)",marginBottom:10}}>Top Venues by Bookings</div>
+                {data.venues.slice(0,5).map((v,i)=>(
+                  <div key={v.venue_id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:20,fontSize:11,fontWeight:700,color:i<3?"var(--gold)":"rgba(255,255,255,.3)",fontFamily:"var(--fd)",textAlign:"center"}}>#{i+1}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,fontWeight:600,color:"white",fontFamily:"var(--fb)"}}>{v.name}</div>
+                      <div style={{fontSize:9,color:P.sub,fontFamily:"var(--fb)"}}>{v.metro} · {v.total_bookings} bookings · ${(v.total_revenue/100).toFixed(0)}</div>
+                    </div>
+                  </div>
+                ))}
+              </ProCard>
+            )}
+
+            {/* No data state */}
+            {totalBookings===0&&totalWaitlist===0&&(
+              <div style={{textAlign:"center",padding:"30px 20px"}}>
+                <div style={{fontSize:36,marginBottom:12}}>📊</div>
+                <div style={{fontSize:14,fontWeight:700,color:"white",fontFamily:"var(--fb)",marginBottom:6}}>No data yet</div>
+                <div style={{fontSize:12,color:P.sub,fontFamily:"var(--fb)",lineHeight:1.6}}>Analytics will populate as waitlist signups and bookings come in. Share lumarsv.com to start growing.</div>
+              </div>
+            )}
+            <div style={{height:40}}/>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function VenueAdmin({goBack}){
   const [tab,setAdminTab]=useState("venues"); // venues or events
   const [venues,setVenues]=useState([]);
@@ -4473,6 +4611,7 @@ export default function App(){
   const [showAdmin,setShowAdmin]=useState(false);
   const [showRevenue,setShowRevenue]=useState(false);
   const [showLeaderboard,setShowLeaderboard]=useState(false);
+  const [showAnalyticsDash,setShowAnalyticsDash]=useState(false);
   const [pwaPrompt,setPwaPrompt]=useState(null);
   const [showPwaBanner,setShowPwaBanner]=useState(false);
 
@@ -4521,7 +4660,7 @@ export default function App(){
     setOnboarded(false);
     setVenue(null); setSelPromoter(null); setInviteData(null); setStack([]);
   };
-  const switchMode=(m)=>{setMode(m);setVenue(null);setSelPromoter(null);setInviteData(null);setStack([]);setShowProfile(false);setGt("home");setPt("dashboard");setShowAdmin(false);setShowRevenue(false);setShowLeaderboard(false);};
+  const switchMode=(m)=>{setMode(m);setVenue(null);setSelPromoter(null);setInviteData(null);setStack([]);setShowProfile(false);setGt("home");setPt("dashboard");setShowAdmin(false);setShowRevenue(false);setShowLeaderboard(false);setShowAnalyticsDash(false);};
 
   const activeScreen=inviteData?"Invite Landing":selPromoter?"Promoter Profile":venue?"Venue Detail":null;
   const label=activeScreen||(pro?{dashboard:"Dashboard",guests:"Guest List",links:"Invite Links",analytics:"Analytics",payouts:"Payouts",messages:"Messages",pricing:"Pricing"}[pt]:{home:"Home",explore:"Explore",map:"Map",promoters:"Promoters",bookings:"My Bookings"}[gt]);
@@ -4548,14 +4687,15 @@ export default function App(){
     if(showAdmin) return <VenueAdmin goBack={()=>setShowAdmin(false)}/>;
     if(showRevenue) return <RevenueDashboard goBack={()=>setShowRevenue(false)}/>;
     if(showLeaderboard) return <ProLeaderboard goBack={()=>setShowLeaderboard(false)}/>;
-    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)} onRevenue={()=>setShowRevenue(true)} onLeaderboard={()=>setShowLeaderboard(true)}/>;
+    if(showAnalyticsDash) return <AnalyticsDashboard goBack={()=>setShowAnalyticsDash(false)}/>;
+    if(pt==="dashboard") return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)} onRevenue={()=>setShowRevenue(true)} onLeaderboard={()=>setShowLeaderboard(true)} onAnalytics={()=>setShowAnalyticsDash(true)}/>;
     if(pt==="guests")    return <ProGuests setTab={setPt} onMessage={(guestName)=>{setMsgTarget(guestName);setPt("messages");}}/>;
     if(pt==="links")     return <ProLinks/>;
     if(pt==="analytics") return <ProAnalytics/>;
     if(pt==="payouts")   return <ProPayouts/>;
     if(pt==="messages")  return <ProMessages initialOpen={msgTarget} onOpened={()=>setMsgTarget(null)}/>;
     if(pt==="pricing")   return <ProPricing/>;
-    return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)} onRevenue={()=>setShowRevenue(true)} onLeaderboard={()=>setShowLeaderboard(true)}/>;
+    return <ProDash setTab={setPt} userName={userName} proData={proData} onAdmin={()=>setShowAdmin(true)} onRevenue={()=>setShowRevenue(true)} onLeaderboard={()=>setShowLeaderboard(true)} onAnalytics={()=>setShowAnalyticsDash(true)}/>;
   };
 
   function GuestTabs(){
@@ -4593,7 +4733,7 @@ export default function App(){
     return(
       <div className="tabbar" style={{background:"rgba(18,18,30,.97)",borderTopColor:"rgba(255,255,255,.07)"}}>
         {tabs.map(t=>{const a=pt===t.id;return(
-          <div key={t.id} className="tab press" onClick={()=>{setPt(t.id);setShowAdmin(false);setShowRevenue(false);setShowLeaderboard(false);}}>
+          <div key={t.id} className="tab press" onClick={()=>{setPt(t.id);setShowAdmin(false);setShowRevenue(false);setShowLeaderboard(false);setShowAnalyticsDash(false);}}>
             {t.ic(a)}
             <span style={{fontSize:9,fontWeight:a?700:400,color:a?"var(--gold)":"rgba(255,255,255,.28)",fontFamily:"var(--fb)"}}>{t.label}</span>
             {a&&<div style={{width:4,height:1.5,borderRadius:2,background:"var(--gold)"}}/>}
