@@ -5,6 +5,57 @@ const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ribyrsrdhskvdm
 const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpYnlyc3JkaHNrdmRtbG5wc3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njc0NDcsImV4cCI6MjA4ODM0MzQ0N30.o1CPKQP1qrvonHJFm7UESuFmgTa3z-BJqePMSVn7ZkI";
 const gold = "#c9a84c";
 
+// Scroll-reveal hook (inspired by 21st.dev scroll-animation components)
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.15 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return { ref, visible };
+}
+function Reveal({ children, delay = 0, style = {} }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties }) {
+  const { ref, visible } = useReveal();
+  return (
+    <div ref={ref} style={{ ...style, opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(32px)", transition: `opacity .7s cubic-bezier(.16,1,.3,1) ${delay}s, transform .7s cubic-bezier(.16,1,.3,1) ${delay}s` }}>
+      {children}
+    </div>
+  );
+}
+
+// Animated number ticker (inspired by 21st.dev reuno-ui/animated-number)
+function NumberTicker({ value, suffix = "", prefix = "", duration = 1.5 }: { value: number; suffix?: string; prefix?: string; duration?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [display, setDisplay] = useState("0");
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !started) { setStarted(true); obs.disconnect(); }
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [started]);
+  useEffect(() => {
+    if (!started) return;
+    const start = performance.now();
+    const step = (now: number) => {
+      const progress = Math.min((now - start) / (duration * 1000), 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      const current = Math.round(eased * value);
+      setDisplay(String(current));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [started, value, duration]);
+  return <span ref={ref}>{prefix}{display}{suffix}</span>;
+}
+
 // Typewriter component
 function Typewriter({ words, speed = 80, deleteSpeed = 40, waitTime = 2000 }: { words: string[], speed?: number, deleteSpeed?: number, waitTime?: number }) {
   const [text, setText] = useState("");
@@ -175,10 +226,10 @@ export default function Home() {
       {/* Features */}
       <section style={{padding:"80px 28px"}}>
         <div style={{maxWidth:1000,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:56}}>
+          <Reveal style={{textAlign:"center",marginBottom:56}}>
             <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>Why Luma</div>
             <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Nightlife booking,<br/><span style={{fontStyle:"italic",color:gold}}>done right.</span></h2>
-          </div>
+          </Reveal>
           <div className="features-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:20}}>
             {[
               ["💰","Transparent Pricing","See real prices upfront. No hidden fees, no surprise minimums, no DM negotiations."],
@@ -213,12 +264,19 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Stats Bar */}
+      {/* Stats Bar — Animated Number Tickers (inspired by 21st.dev animated-number) */}
       <section style={{padding:"48px 28px",borderTop:"1px solid rgba(255,255,255,.04)",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
         <div style={{maxWidth:900,margin:"0 auto",display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:24}}>
-          {[["29","Venues","Miami & NYC"],["60s","Booking Time","Average"],["15%","Commission","For promoters"],["$25","Referral Credit","Per friend"],["24/7","Support","Always on"]].map(([num,label,sub])=>(
+          {[
+            {v:29,s:"",p:"",label:"Venues",sub:"Miami & NYC"},
+            {v:60,s:"s",p:"",label:"Booking Time",sub:"Average"},
+            {v:15,s:"%",p:"",label:"Commission",sub:"For promoters"},
+            {v:25,s:"",p:"$",label:"Referral Credit",sub:"Per friend"},
+          ].map(({v,s,p,label,sub})=>(
             <div key={label} style={{textAlign:"center",minWidth:100}}>
-              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:36,fontWeight:700,color:gold}}>{num}</div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:36,fontWeight:700,color:gold}}>
+                <NumberTicker value={v} prefix={p} suffix={s} duration={1.8}/>
+              </div>
               <div style={{fontSize:12,fontWeight:600,color:"white",marginTop:2}}>{label}</div>
               <div style={{fontSize:10,color:"rgba(255,255,255,.25)",marginTop:2}}>{sub}</div>
             </div>
@@ -229,10 +287,10 @@ export default function Home() {
       {/* Venues */}
       <section style={{padding:"80px 28px",background:"rgba(255,255,255,.02)"}}>
         <div style={{maxWidth:1000,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:48}}>
+          <Reveal style={{textAlign:"center",marginBottom:48}}>
             <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>29 Venues & Counting</div>
             <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>The best spots in<br/><span style={{fontStyle:"italic",color:gold}}>Miami & NYC.</span></h2>
-          </div>
+          </Reveal>
           <div className="venue-row" style={{display:"flex",gap:16,marginBottom:16}}>
             {[
               {n:"LIV",c:"Miami Beach",p:"$250+",img:"https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=400&h=300&fit=crop"},
@@ -258,9 +316,9 @@ export default function Home() {
       {/* How It Works */}
       <section style={{padding:"80px 28px"}}>
         <div style={{maxWidth:700,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:48}}>
+          <Reveal style={{textAlign:"center",marginBottom:48}}>
             <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Book in <span style={{fontStyle:"italic",color:gold}}>three steps.</span></h2>
-          </div>
+          </Reveal>
           {[["01","Browse","Explore venues by city, type, and price. See reviews and availability."],["02","Book","Pick your table, date, and party size. Apply a promo code. Pay securely."],["03","Show up","Get your QR confirmation. Show it at the door. Enjoy your night."]].map(([num,title,desc])=>(
             <div key={num} style={{display:"flex",gap:24,marginBottom:32,alignItems:"flex-start"}}>
               <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:48,fontWeight:700,color:gold,lineHeight:1,flexShrink:0,width:60}}>{num}</div>
@@ -287,13 +345,75 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Testimonials Marquee (inspired by 21st.dev serafimcloud/testimonials-with-marquee) */}
+      <section style={{padding:"80px 0",overflow:"hidden",position:"relative"}}>
+        <Reveal style={{textAlign:"center",marginBottom:48,padding:"0 28px"}}>
+          <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>What People Say</div>
+          <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Built for the <span style={{fontStyle:"italic",color:gold}}>culture.</span></h2>
+        </Reveal>
+        {/* Row 1 — scrolls left */}
+        <div style={{overflow:"hidden",position:"relative",marginBottom:16}}>
+          <div style={{position:"absolute",left:0,top:0,bottom:0,width:100,background:"linear-gradient(to right,#08080c,transparent)",zIndex:2}}/>
+          <div style={{position:"absolute",right:0,top:0,bottom:0,width:100,background:"linear-gradient(to left,#08080c,transparent)",zIndex:2}}/>
+          <div style={{display:"flex",animation:"marquee 35s linear infinite",width:"max-content"}}>
+            {[...Array(2)].map((_,rep)=>(
+              <div key={rep} style={{display:"flex",gap:16,paddingRight:16}}>
+                {[
+                  {q:"Finally an app that shows real prices. No more DMing 5 different promoters for quotes.",n:"Sophia R.",c:"Miami Beach",r:"Guest"},
+                  {q:"Booked a table at Marquee in 60 seconds. Got my QR code instantly. This is how it should work.",n:"Tyler W.",c:"New York",r:"Guest"},
+                  {q:"I made $3,200 last month just from my invite links. The dashboard makes it easy to track everything.",n:"Nate S.",c:"Miami",r:"Promoter"},
+                  {q:"My group used to waste hours figuring out bottle service. Luma cut that to literally one minute.",n:"Jade L.",c:"Miami",r:"Guest"},
+                  {q:"The promo codes actually work and the prices match what you see. No hidden anything.",n:"Marcus D.",c:"New York",r:"Guest"},
+                  {q:"Being able to compare venues side by side changed how I plan nights out.",n:"Priya K.",c:"Chelsea",r:"Guest"},
+                ].map(t=>(
+                  <div key={t.n+rep} style={{width:340,flexShrink:0,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:20,padding:"24px 22px",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                    <div style={{fontSize:14,color:"rgba(255,255,255,.55)",lineHeight:1.7,fontStyle:"italic",marginBottom:16}}>&ldquo;{t.q}&rdquo;</div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${gold}33,${gold}11)`,border:`1px solid ${gold}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:gold}}>{t.n[0]}</div>
+                      <div><div style={{fontSize:13,fontWeight:600}}>{t.n}</div><div style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>{t.c} · {t.r}</div></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Row 2 — scrolls right (reverse) */}
+        <div style={{overflow:"hidden",position:"relative"}}>
+          <div style={{position:"absolute",left:0,top:0,bottom:0,width:100,background:"linear-gradient(to right,#08080c,transparent)",zIndex:2}}/>
+          <div style={{position:"absolute",right:0,top:0,bottom:0,width:100,background:"linear-gradient(to left,#08080c,transparent)",zIndex:2}}/>
+          <div style={{display:"flex",animation:"marquee 40s linear infinite reverse",width:"max-content"}}>
+            {[...Array(2)].map((_,rep)=>(
+              <div key={rep} style={{display:"flex",gap:16,paddingRight:16}}>
+                {[
+                  {q:"I switched from calling venues directly. Luma saves me at least an hour every weekend.",n:"Alex M.",c:"Brickell",r:"Guest"},
+                  {q:"My clients love getting their QR code right away. Makes me look professional.",n:"Gabriella N.",c:"South Beach",r:"Promoter"},
+                  {q:"The referral credits are real. Got $75 back just from telling three friends.",n:"Chris T.",c:"Lower East Side",r:"Guest"},
+                  {q:"Pool parties, rooftops, nightclubs — everything in one app instead of 6 different group chats.",n:"Alana V.",c:"Miami",r:"Guest"},
+                  {q:"Transparent pricing is a game-changer. I know exactly what I'm paying before I commit.",n:"Devon R.",c:"Meatpacking",r:"Guest"},
+                  {q:"The analytics dashboard helped me double my bookings in two weeks.",n:"Jordan P.",c:"Miami",r:"Promoter"},
+                ].map(t=>(
+                  <div key={t.n+rep} style={{width:340,flexShrink:0,background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:20,padding:"24px 22px",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                    <div style={{fontSize:14,color:"rgba(255,255,255,.55)",lineHeight:1.7,fontStyle:"italic",marginBottom:16}}>&ldquo;{t.q}&rdquo;</div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${gold}33,${gold}11)`,border:`1px solid ${gold}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:gold}}>{t.n[0]}</div>
+                      <div><div style={{fontSize:13,fontWeight:600}}>{t.n}</div><div style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>{t.c} · {t.r}</div></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Comparison Table */}
       <section style={{padding:"80px 28px"}}>
         <div style={{maxWidth:800,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:48}}>
+          <Reveal style={{textAlign:"center",marginBottom:48}}>
             <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>Why Switch</div>
             <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Luma vs the <span style={{fontStyle:"italic",color:gold}}>old way.</span></h2>
-          </div>
+          </Reveal>
           <div style={{borderRadius:20,overflow:"hidden",border:"1px solid rgba(255,255,255,.08)"}}>
             <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",background:"rgba(255,255,255,.04)"}}>
               <div style={{padding:"14px 20px",fontSize:11,fontWeight:700,color:"rgba(255,255,255,.3)"}}></div>
@@ -325,10 +445,10 @@ export default function Home() {
       {/* FAQ */}
       <section style={{padding:"60px 28px 80px",background:"rgba(255,255,255,.02)"}}>
         <div style={{maxWidth:700,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:48}}>
+          <Reveal style={{textAlign:"center",marginBottom:48}}>
             <div style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:12}}>FAQ</div>
             <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:38,fontWeight:700}}>Questions? <span style={{fontStyle:"italic",color:gold}}>Answered.</span></h2>
-          </div>
+          </Reveal>
           {[
             ["How does Luma work?","Browse venues in Miami & NYC, pick a table, select your date and party size, and book instantly. You get a QR confirmation code to show at the door. No DMs, no callbacks, no surprises."],
             ["How much does it cost?","Luma is free to use for guests. Prices shown are the venue's table minimum. We charge a 10% platform fee included in the total. No hidden charges."],
