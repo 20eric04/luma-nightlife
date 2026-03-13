@@ -465,8 +465,12 @@ function VenueGrad({type,name,style,children}){
     <div style={{position:"relative",background:bg,...style,overflow:"hidden"}}>
       {/* Subtle noise texture */}
       <div style={{position:"absolute",inset:0,opacity:.06,backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")"}}/>
+      {/* Radial glow */}
+      <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.08),transparent 60%)"}}/>
+      {/* Venue name as large watermark */}
+      {name&&<div style={{position:"absolute",bottom:-2,left:8,right:8,fontFamily:"'Cormorant Garamond',serif",fontSize:name.length>10?22:28,fontWeight:700,fontStyle:"italic",color:"rgba(255,255,255,.12)",lineHeight:1,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",userSelect:"none"}}>{name}</div>}
       {/* Emoji watermark */}
-      <div style={{position:"absolute",bottom:-4,right:6,fontSize:38,opacity:.18,userSelect:"none",lineHeight:1}}>{em}</div>
+      <div style={{position:"absolute",top:6,right:8,fontSize:16,opacity:.2,userSelect:"none"}}>{em}</div>
       {children}
     </div>
   );
@@ -475,13 +479,14 @@ function VenueGrad({type,name,style,children}){
 // Img - shows gradient immediately, image overlays when loaded
 function Img({src,style,alt="",type,name}){
   const [ok,setOk]=useState(false);
-  const safe=isSafeImgSrc(src)&&!!src;
+  const [err,setErr]=useState(false);
+  const safe=isSafeImgSrc(src)&&!!src&&!err;
   return(
     <div style={{position:"relative",...style}}>
       <VenueGrad type={type||"default"} name={name} style={{position:"absolute",inset:0,borderRadius:"inherit"}}/>
-      {safe&&<img src={src} alt={alt}
+      {safe&&<img src={src} alt={alt} crossOrigin="anonymous" referrerPolicy="no-referrer"
         style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",borderRadius:"inherit",opacity:ok?1:0,transition:"opacity .4s"}}
-        onLoad={()=>setOk(true)}/>}
+        onLoad={()=>setOk(true)} onError={()=>setErr(true)}/>}
     </div>
   );
 }
@@ -523,23 +528,36 @@ function Home({go,city="Miami",userName="Guest"}){
   const hero=hotStrip[0]||display[0]||VENUES[0];
   return(
     <div className="scroll" style={{flex:1,overflowY:"auto",background:"var(--bg)"}}>
-      {/* Hero */}
-      <div style={{position:"relative",height:250}}>
-        <Img src={hero.img} style={{position:"absolute",inset:0}} alt={hero.name} type={hero.type} name={hero.name}/>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.8),transparent 55%)"}}/>
-        <div style={{position:"absolute",top:8,left:20,right:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {city==="New York"?"New York, NY":"Miami, FL"}</div><div style={{fontFamily:"var(--fd)",fontSize:19,fontStyle:"italic",color:"white"}}>{getGreeting()}, {userName}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <NotificationBell dark={true}/>
-            <div onClick={()=>go("profile")} className="press" style={{width:35,height:35,borderRadius:"50%",background:"rgba(255,255,255,.15)",border:"1.5px solid rgba(255,255,255,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fb)",cursor:"pointer"}}>{userName[0]||"G"}</div>
-          </div>
+      {/* Back to landing + greeting bar */}
+      <div style={{padding:"6px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <a href="/" style={{fontSize:9,color:"var(--dim)",textDecoration:"none",fontFamily:"var(--fb)",fontWeight:600,display:"inline-flex",alignItems:"center",gap:3,padding:"3px 0"}}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            lumarsv.com
+          </a>
+          <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:1}}>📍 {city==="New York"?"New York, NY":"Miami, FL"}</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:22,fontStyle:"italic",color:"var(--ink)",marginTop:2}}>{getGreeting()}, {userName}</div>
         </div>
-        <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 18px 14px"}}>
-          <span style={{background:"rgba(255,255,255,.15)",backdropFilter:"blur(8px)",color:"white",padding:"2px 8px",borderRadius:18,fontSize:9,fontWeight:700,fontFamily:"var(--fb)"}}>🔥 Featured Tonight</span>
-          <div style={{fontFamily:"var(--fd)",fontSize:21,fontWeight:700,color:"white",marginTop:4}}>{hero.name}</div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:3}}>
-            <span style={{fontSize:10,color:"rgba(255,255,255,.55)",fontFamily:"var(--fb)"}}>📍 {hero.city} . {hero.distance}</span>
-            <button onClick={()=>go("venue",hero)} className="press" style={{background:"white",border:"none",borderRadius:18,color:"var(--ink)",padding:"6px 13px",fontSize:11,fontWeight:700,fontFamily:"var(--fb)",cursor:"pointer"}}>Reserve →</button>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <NotificationBell/>
+          <div onClick={()=>go("profile")} className="press" style={{width:35,height:35,borderRadius:"50%",background:"var(--ink)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fb)",cursor:"pointer"}}>{userName[0]||"G"}</div>
+        </div>
+      </div>
+
+      {/* Hero venue card */}
+      <div style={{padding:"12px 18px 0"}}>
+        <div className="press" onClick={()=>go("venue",hero)} style={{position:"relative",height:180,borderRadius:20,overflow:"hidden"}}>
+          <Img src={hero.img} style={{position:"absolute",inset:0}} alt={hero.name} type={hero.type} name={hero.name}/>
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.85),transparent 55%)"}}/>
+          <div style={{position:"absolute",top:12,left:14}}>
+            <span style={{background:"rgba(255,255,255,.15)",backdropFilter:"blur(8px)",color:"white",padding:"3px 10px",borderRadius:18,fontSize:9,fontWeight:700,fontFamily:"var(--fb)"}}>🔥 Featured Tonight</span>
+          </div>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0 16px 14px"}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:22,fontWeight:700,color:"white"}}>{hero.name}</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:4}}>
+              <span style={{fontSize:11,color:"rgba(255,255,255,.6)",fontFamily:"var(--fb)"}}>📍 {hero.city} · {hero.distance}</span>
+              <span style={{background:"white",color:"var(--ink)",padding:"6px 14px",borderRadius:18,fontSize:11,fontWeight:700,fontFamily:"var(--fb)"}}>Reserve →</span>
+            </div>
           </div>
         </div>
       </div>
@@ -560,18 +578,18 @@ function Home({go,city="Miami",userName="Guest"}){
         </div>
         <div className="hscroll" style={{display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none",marginLeft:-18,paddingLeft:18,marginRight:-18,paddingRight:18,paddingBottom:4}}>
           {hotStrip.map((v,i)=>(
-            <div key={v.id} className={`press fu fu${Math.min(i+1,3)}`} onClick={()=>go("venue",v)} style={{flexShrink:0,width:178,borderRadius:16,overflow:"hidden",background:"var(--white)",border:"1px solid var(--line)"}}>
-              <div style={{position:"relative",height:125}}>
+            <div key={v.id} className={`press fu fu${Math.min(i+1,3)}`} onClick={()=>go("venue",v)} style={{flexShrink:0,width:155,borderRadius:16,overflow:"hidden",background:"var(--white)",border:"1px solid var(--line)"}}>
+              <div style={{position:"relative",height:105}}>
                 <Img src={v.img} style={{position:"absolute",inset:0}} alt={v.name} type={v.type} name={v.name}/>
-                <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.6),transparent 50%)"}}/>
-                <div style={{position:"absolute",bottom:8,left:10}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{v.name}</div>
-                  <div style={{fontSize:9,color:"rgba(255,255,255,.6)",fontFamily:"var(--fb)"}}>{v.city}</div>
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.7),transparent 50%)"}}/>
+                <div style={{position:"absolute",bottom:8,left:10,right:10}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"white",fontFamily:"var(--fb)"}}>{v.name}</div>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,.6)",fontFamily:"var(--fb)"}}>{v.city} · {v.type}</div>
                 </div>
               </div>
-              <div style={{padding:"8px 11px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{padding:"7px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <Stars r={v.rating}/>
-                <span style={{fontFamily:"var(--fd)",fontSize:14,fontWeight:700,color:"var(--ink)"}}>${v.price}+</span>
+                <span style={{fontFamily:"var(--fd)",fontSize:13,fontWeight:700,color:"var(--ink)"}}>${v.price}+</span>
               </div>
             </div>
           ))}
@@ -648,11 +666,19 @@ function Home({go,city="Miami",userName="Guest"}){
           const dist=distanceTo(v.lat,v.lng);
           return(
           <div key={v.id} className="press" onClick={()=>{addRecentlyViewed(v);go("venue",v);}} style={{display:"flex",gap:12,padding:"10px 12px",background:"var(--white)",border:"1px solid var(--line)",borderRadius:14,marginBottom:8,position:"relative"}}>
-            <Img src={v.img} style={{width:58,height:58,borderRadius:12,flexShrink:0}} alt={v.name} type={v.type} name={v.name}/>
-            <div style={{flex:1,minWidth:0,paddingTop:2}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontFamily:"var(--fb)",fontSize:13,fontWeight:700,color:"var(--ink)"}}>{v.name}</span><span style={{fontFamily:"var(--fd)",fontSize:14,fontWeight:700}}>${v.price}+</span></div>
-              <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:4}}>📍 {v.city} . {v.type} . {dist?dist+" mi":v.distance}</div>
-              <Stars r={v.rating}/>
+            <Img src={v.img} style={{width:62,height:62,borderRadius:12,flexShrink:0}} alt={v.name} type={v.type} name={v.name}/>
+            <div style={{flex:1,minWidth:0,paddingTop:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                <span style={{fontFamily:"var(--fb)",fontSize:14,fontWeight:700,color:"var(--ink)"}}>{v.name}</span>
+                <span style={{fontFamily:"var(--fd)",fontSize:15,fontWeight:700,color:"var(--ink)"}}>${v.price}+</span>
+              </div>
+              <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:3}}>
+                {v.type} · {v.city} · {dist?dist+" mi":v.distance}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <Stars r={v.rating}/>
+                {v.tags?.slice(0,1).map(t=><span key={t} style={{fontSize:8,color:"var(--sub)",background:"rgba(0,0,0,.04)",padding:"2px 6px",borderRadius:6,fontFamily:"var(--fb)"}}>{t}</span>)}
+              </div>
             </div>
             <button onClick={(e)=>{e.stopPropagation();toggleFav(v.id);}} style={{position:"absolute",top:8,right:8,background:"none",border:"none",fontSize:16,cursor:"pointer",opacity:isFav(v.id)?1:.3,transition:"all .15s"}}>{isFav(v.id)?"❤️":"🤍"}</button>
           </div>);
