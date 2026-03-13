@@ -531,10 +531,6 @@ function Home({go,city="Miami",userName="Guest"}){
       {/* Back to landing + greeting bar */}
       <div style={{padding:"6px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
-          <a href="/" style={{fontSize:9,color:"var(--dim)",textDecoration:"none",fontFamily:"var(--fb)",fontWeight:600,display:"inline-flex",alignItems:"center",gap:3,padding:"3px 0"}}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-            lumarsv.com
-          </a>
           <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginTop:1}}>📍 {city==="New York"?"New York, NY":"Miami, FL"}</div>
           <div style={{fontFamily:"var(--fd)",fontSize:22,fontStyle:"italic",color:"var(--ink)",marginTop:2}}>{getGreeting()}, {userName}</div>
         </div>
@@ -4452,6 +4448,14 @@ export default function App(){
           ?<div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 25% 25%,rgba(201,168,76,.05),transparent 65%)",pointerEvents:"none"}}/>
           :<div style={{position:"absolute",inset:0,backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.02'/%3E%3C/svg%3E\")",pointerEvents:"none"}}/>
         }
+
+        {/* Floating back-to-landing button (visible when NOT in iframe) */}
+        {typeof window!=="undefined"&&window.self===window.top&&(
+        <a href="/" style={{position:"absolute",top:16,left:20,zIndex:20,display:"flex",alignItems:"center",gap:6,fontSize:12,color:pro?"rgba(255,255,255,.35)":"var(--dim)",textDecoration:"none",fontFamily:"var(--fb)",fontWeight:600,padding:"6px 12px",borderRadius:10,background:pro?"rgba(255,255,255,.05)":"rgba(0,0,0,.04)",border:`1px solid ${pro?"rgba(255,255,255,.08)":"rgba(0,0,0,.06)"}`,transition:"all .2s"}}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          lumarsv.com
+        </a>
+        )}
 
         <div style={{display:"flex",alignItems:"center",gap:52,width:"100%",maxWidth:940,padding:"0 28px",position:"relative",zIndex:1}}>
 

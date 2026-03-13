@@ -175,49 +175,7 @@ export default function Home() {
           <div className="fade d4 mockup-wrap" style={{flexShrink:0,position:"relative"}}>
             <div style={{width:280,height:560,background:"#f5f4f0",borderRadius:36,boxShadow:"0 0 0 8px #1c1c1e,0 0 0 9px rgba(255,255,255,.06),0 40px 120px rgba(0,0,0,.6)",overflow:"hidden",position:"relative",animation:"float 6s ease infinite"}}>
               <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",width:90,height:26,background:"#000",borderRadius:16,zIndex:10}}/>
-              {/* Static app preview */}
-              <div style={{padding:"52px 18px 0",height:"100%",display:"flex",flexDirection:"column"}}>
-                <div style={{fontSize:9,color:"rgba(0,0,0,.4)",fontFamily:"'DM Sans',sans-serif",marginBottom:2}}>📍 Miami, FL</div>
-                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontStyle:"italic",color:"#0a0a0a",marginBottom:12}}>Good evening, Eric</div>
-                <div style={{height:130,borderRadius:14,background:"linear-gradient(135deg,#1e0533,#6d28d9)",position:"relative",marginBottom:14,overflow:"hidden"}}>
-                  <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"10px 12px",background:"linear-gradient(to top,rgba(0,0,0,.7),transparent)"}}>
-                    <div style={{fontSize:8,color:"rgba(255,255,255,.5)"}}>🔥 Featured Tonight</div>
-                    <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:"white"}}>LIV</div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
-                      <span style={{fontSize:8,color:"rgba(255,255,255,.5)"}}>Miami Beach · 0.5 mi</span>
-                      <span style={{background:"white",color:"#0a0a0a",padding:"3px 10px",borderRadius:12,fontSize:8,fontWeight:700}}>Reserve →</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontWeight:700,color:"#0a0a0a",marginBottom:8}}>Hot Right Now</div>
-                <div style={{display:"flex",gap:8}}>
-                  {[{n:"LIV",c:"#6d28d9",p:"$250+"},{n:"E11EVEN",c:"#1d4ed8",p:"$200+"},{n:"Story",c:"#92400e",p:"$300+"}].map(v=>(
-                    <div key={v.n} style={{width:80,borderRadius:10,overflow:"hidden",background:"white",border:"1px solid rgba(0,0,0,.06)",flexShrink:0}}>
-                      <div style={{height:55,background:`linear-gradient(135deg,${v.c},${v.c}88)`,position:"relative"}}>
-                        <div style={{position:"absolute",bottom:4,left:6}}><div style={{fontSize:8,fontWeight:700,color:"white"}}>{v.n}</div></div>
-                      </div>
-                      <div style={{padding:"4px 6px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{fontSize:7,color:"#999"}}>★★★★★</span>
-                        <span style={{fontSize:8,fontWeight:700}}>{v.p}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontWeight:700,color:"#0a0a0a",marginTop:12,marginBottom:6}}>All Venues</div>
-                {[{n:"Nikki Beach",t:"Pool Party",p:"$100+"},{n:"Club Space",t:"Nightclub",p:"$80+"}].map(v=>(
-                  <div key={v.n} style={{display:"flex",gap:8,padding:"6px 8px",background:"white",border:"1px solid rgba(0,0,0,.06)",borderRadius:10,marginBottom:5}}>
-                    <div style={{width:36,height:36,borderRadius:8,background:"linear-gradient(135deg,#1e3a5f,#0ea5e9)",flexShrink:0}}/>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:10,fontWeight:700}}>{v.n}</div>
-                      <div style={{fontSize:7,color:"#999"}}>{v.t} · {v.p}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Tab bar */}
-              <div style={{position:"absolute",bottom:0,left:0,right:0,display:"flex",justifyContent:"space-around",padding:"8px 0 18px",background:"rgba(245,244,240,.97)",borderTop:"1px solid rgba(0,0,0,.06)"}}>
-                {["🏠","🔍","🗺","👥","🎟","👤"].map((ic,i)=><span key={i} style={{fontSize:14,opacity:i===0?1:.35}}>{ic}</span>)}
-              </div>
+              <iframe src="/app" style={{width:"100%",height:"100%",border:"none",borderRadius:36,pointerEvents:"none"}} title="Luma App Preview" loading="lazy"/>
             </div>
           </div>
         </div>
