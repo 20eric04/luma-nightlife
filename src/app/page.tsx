@@ -58,9 +58,9 @@ function NumberTicker({ value, suffix = "", prefix = "", duration = 1.5 }: { val
 
 // Typewriter component
 function Typewriter({ words, speed = 80, deleteSpeed = 40, waitTime = 2000 }: { words: string[], speed?: number, deleteSpeed?: number, waitTime?: number }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(words[0] || "");
   const [wordIdx, setWordIdx] = useState(0);
-  const [charIdx, setCharIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(words[0]?.length || 0);
   const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     const current = words[wordIdx];
