@@ -3482,15 +3482,15 @@ function AuthGate({onAuth}) {
   };
 
   if (view === "landing") return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 28px",background:"var(--bg)",width:"100%",boxSizing:"border-box"}}>
-      <div style={{fontFamily:"var(--fd)",fontSize:48,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:8,color:"var(--ink)"}}>Luma</div>
-      <div style={{fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:4,textAlign:"center",width:"100%"}}>Miami &middot; New York</div>
-      <div style={{fontSize:12,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:6,textAlign:"center",width:"100%"}}>Your night starts here</div>
-      <div style={{fontSize:10,color:"var(--dim)",fontFamily:"var(--fb)",marginBottom:44,textAlign:"center",width:"100%",opacity:0.6}}>Book VIP tables at the best venues</div>
-      <div style={{width:"100%",maxWidth:280,display:"flex",flexDirection:"column",gap:10}}>
-        <button onClick={()=>setView("signin")} className="press" style={{padding:"14px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:14,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Sign In</button>
-        <button onClick={()=>setView("signup")} className="press" style={{padding:"14px",background:"var(--white)",color:"var(--ink)",border:"1.5px solid var(--line2)",borderRadius:13,fontSize:14,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Create Account</button>
-        <button onClick={()=>onAuth(null)} className="press" style={{padding:"11px",background:"transparent",border:"none",color:"var(--sub)",borderRadius:13,fontSize:11,fontFamily:"var(--fb)",fontWeight:500,cursor:"pointer",marginTop:4}}>Continue without account</button>
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 20px",background:"var(--bg)",width:"100%",boxSizing:"border-box",overflow:"hidden"}}>
+      <div style={{fontFamily:"var(--fd)",fontSize:44,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:8,color:"var(--ink)"}}>Luma</div>
+      <div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:4,textAlign:"center"}}>Miami &middot; New York</div>
+      <div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:6,textAlign:"center"}}>Your night starts here</div>
+      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",marginBottom:40,textAlign:"center",opacity:0.5}}>Book VIP tables at top venues</div>
+      <div style={{width:"100%",maxWidth:240,display:"flex",flexDirection:"column",gap:10}}>
+        <button onClick={()=>setView("signin")} className="press" style={{padding:"13px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Sign In</button>
+        <button onClick={()=>setView("signup")} className="press" style={{padding:"13px",background:"var(--white)",color:"var(--ink)",border:"1.5px solid var(--line2)",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Create Account</button>
+        <button onClick={()=>onAuth(null)} className="press" style={{padding:"10px",background:"transparent",border:"none",color:"var(--sub)",borderRadius:13,fontSize:10,fontFamily:"var(--fb)",fontWeight:500,cursor:"pointer",marginTop:2}}>Continue as guest</button>
       </div>
     </div>
   );

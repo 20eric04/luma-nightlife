@@ -56,26 +56,18 @@ function NumberTicker({ value, suffix = "", prefix = "", duration = 1.5 }: { val
   return <span ref={ref}>{prefix}{display}{suffix}</span>;
 }
 
-// Typewriter component
-function Typewriter({ words, speed = 80, deleteSpeed = 40, waitTime = 2000 }: { words: string[], speed?: number, deleteSpeed?: number, waitTime?: number }) {
-  const [text, setText] = useState(words[0] || "");
-  const [wordIdx, setWordIdx] = useState(0);
-  const [charIdx, setCharIdx] = useState(words[0]?.length || 0);
-  const [deleting, setDeleting] = useState(false);
+// Word rotator - fades between complete words, never shows partial text
+function WordRotator({ words, interval = 3000 }: { words: string[], interval?: number }) {
+  const [idx, setIdx] = useState(0);
+  const [fading, setFading] = useState(false);
   useEffect(() => {
-    const current = words[wordIdx];
-    const t = setTimeout(() => {
-      if (!deleting) {
-        if (charIdx < current.length) { setText(current.slice(0, charIdx + 1)); setCharIdx(c => c + 1); }
-        else { setTimeout(() => setDeleting(true), waitTime); }
-      } else {
-        if (charIdx > 0) { setText(current.slice(0, charIdx - 1)); setCharIdx(c => c - 1); }
-        else { setDeleting(false); setWordIdx(w => (w + 1) % words.length); }
-      }
-    }, deleting ? deleteSpeed : speed);
-    return () => clearTimeout(t);
-  }, [charIdx, deleting, wordIdx, words, speed, deleteSpeed, waitTime]);
-  return <>{text}<span style={{borderRight:"2px solid "+gold,marginLeft:2,animation:"blink 1s step-end infinite"}}>&nbsp;</span></>;
+    const t = setInterval(() => {
+      setFading(true);
+      setTimeout(() => { setIdx(i => (i + 1) % words.length); setFading(false); }, 400);
+    }, interval);
+    return () => clearInterval(t);
+  }, [words.length, interval]);
+  return <span style={{transition:"opacity .4s ease",opacity:fading?0:1}}>{words[idx]}</span>;
 }
 
 export default function Home() {
@@ -161,7 +153,7 @@ export default function Home() {
           <div style={{flex:1,minWidth:0}}>
             <div className="fade d1" style={{fontSize:12,color:gold,fontWeight:700,letterSpacing:".15em",textTransform:"uppercase",marginBottom:16}}>Miami & New York</div>
             <h1 className="fade d2" style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"clamp(42px,6vw,72px)",fontWeight:700,lineHeight:1.1,marginBottom:20}}>
-              Book <span style={{fontStyle:"italic",color:gold}}><Typewriter words={["VIP tables","bottle service","rooftops","pool parties","the best night out"]} speed={70} deleteSpeed={35} waitTime={1800}/></span><br/>in 60 seconds.
+              Book <span style={{fontStyle:"italic",color:gold}}><WordRotator words={["VIP tables","bottle service","rooftops","pool parties","the best night out"]} interval={2800}/></span><br/>in 60 seconds.
             </h1>
             <p className="fade d3" style={{fontSize:17,color:"rgba(255,255,255,.45)",lineHeight:1.75,marginBottom:32,maxWidth:440}}>
               Book bottle service, rooftops, and nightlife with real pricing. No DM negotiations. No surprises at the door.
@@ -469,5 +461,3 @@ export default function Home() {
     </>
   );
 }
-// deployed 2026-03-13T06:01:06Z
-// deploy 1773535519
