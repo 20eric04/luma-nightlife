@@ -3482,16 +3482,24 @@ function AuthGate({onAuth}) {
   };
 
   if (view === "landing") return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 20px",background:"var(--bg)",width:"100%",boxSizing:"border-box",overflow:"hidden"}}>
-      <div style={{fontFamily:"var(--fd)",fontSize:44,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:8,color:"var(--ink)"}}>Luma</div>
-      <div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:4,textAlign:"center"}}>Miami &middot; New York</div>
-      <div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:6,textAlign:"center"}}>Your night starts here</div>
-      <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",marginBottom:40,textAlign:"center",opacity:0.5}}>Book VIP tables at top venues</div>
-      <div style={{width:"100%",maxWidth:240,display:"flex",flexDirection:"column",gap:10}}>
-        <button onClick={()=>setView("signin")} className="press" style={{padding:"13px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Sign In</button>
-        <button onClick={()=>setView("signup")} className="press" style={{padding:"13px",background:"var(--white)",color:"var(--ink)",border:"1.5px solid var(--line2)",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Create Account</button>
-        <button onClick={()=>onAuth(null)} className="press" style={{padding:"10px",background:"transparent",border:"none",color:"var(--sub)",borderRadius:13,fontSize:10,fontFamily:"var(--fb)",fontWeight:500,cursor:"pointer",marginTop:2}}>Continue as guest</button>
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 20px",background:"#08080c",width:"100%",boxSizing:"border-box",overflow:"hidden",position:"relative"}}>
+      {/* Ambient gold glow orbs */}
+      <div style={{position:"absolute",top:"-15%",right:"-10%",width:"55%",height:"55%",borderRadius:"50%",background:"radial-gradient(circle, rgba(201,168,76,.12), transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{position:"absolute",bottom:"-20%",left:"-15%",width:"60%",height:"60%",borderRadius:"50%",background:"radial-gradient(circle, rgba(201,168,76,.07), transparent 70%)",pointerEvents:"none"}}/>
+      {/* Content */}
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",width:"100%"}}>
+        <div style={{fontSize:9,color:"#c9a84c",fontFamily:"var(--fb)",letterSpacing:3,fontWeight:600,marginBottom:10,textTransform:"uppercase"}}>Nightlife App</div>
+        <div style={{fontFamily:"var(--fd)",fontSize:48,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:10,color:"white"}}>Luma</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,.5)",fontFamily:"var(--fb)",marginBottom:4,textAlign:"center"}}>Miami &middot; New York</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,.35)",fontFamily:"var(--fb)",marginBottom:6,textAlign:"center"}}>Your night starts here</div>
+        <div style={{fontSize:9,color:"#c9a84c",fontFamily:"var(--fb)",marginBottom:40,textAlign:"center",opacity:0.6}}>Book VIP tables in 60 seconds</div>
+        <div style={{width:"100%",maxWidth:240,display:"flex",flexDirection:"column",gap:10}}>
+          <button onClick={()=>setView("signin")} className="press" style={{padding:"13px",background:"#c9a84c",color:"#0a0a0a",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:700,cursor:"pointer"}}>Sign In</button>
+          <button onClick={()=>setView("signup")} className="press" style={{padding:"13px",background:"transparent",color:"white",border:"1px solid rgba(255,255,255,.15)",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Create Account</button>
+          <button onClick={()=>onAuth(null)} className="press" style={{padding:"10px",background:"transparent",border:"none",color:"rgba(255,255,255,.35)",borderRadius:13,fontSize:10,fontFamily:"var(--fb)",fontWeight:500,cursor:"pointer",marginTop:2}}>Continue as guest</button>
+        </div>
       </div>
+      <div style={{position:"absolute",bottom:12,fontSize:9,color:"rgba(255,255,255,.15)",fontFamily:"var(--fb)",zIndex:1}}>lumarsv.com</div>
     </div>
   );
 
