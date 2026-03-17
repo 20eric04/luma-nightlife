@@ -4465,8 +4465,8 @@ export default function App(){
 
         <div style={{display:"flex",alignItems:"center",gap:52,width:"100%",maxWidth:940,padding:"0 28px",position:"relative",zIndex:1}}>
 
-          {/* Left panel - hidden in iframes */}
-          {typeof window!=="undefined"&&window.self===window.top&&(
+          {/* Left panel - HIDDEN (dev only, not for users) */}
+          {false&&(
           <div style={{flex:1,minWidth:0,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1) both"}}>
             <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:13}}>
               <div style={{width:16,height:1,background:pro?"var(--gold)":"var(--ink)"}}/>
