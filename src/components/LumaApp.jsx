@@ -4463,42 +4463,7 @@ export default function App(){
         </a>
         )}
 
-        <div style={{display:"flex",alignItems:"center",gap:52,width:"100%",maxWidth:940,padding:"0 28px",position:"relative",zIndex:1}}>
-
-          {/* Left — brand + value props */}
-          <div style={{flex:1,minWidth:0,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1) both"}}>
-            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:13}}>
-              <div style={{width:16,height:1,background:pro?"var(--gold)":"var(--ink)"}}/>
-              <span style={{fontSize:10,fontWeight:600,letterSpacing:".14em",color:pro?"var(--gold)":"var(--ink2)",textTransform:"uppercase",fontFamily:"var(--fb)"}}>{pro?"For Promoters":"Nightlife App"}</span>
-            </div>
-            <div style={{fontFamily:"var(--fd)",fontWeight:700,fontStyle:"italic",fontSize:54,lineHeight:.9,letterSpacing:"-.03em",marginBottom:12,color:pro?"white":"var(--ink)"}}>luma</div>
-            <p style={{fontFamily:"var(--fb)",fontSize:14,color:pro?"rgba(255,255,255,.5)":"var(--sub)",lineHeight:1.6,marginBottom:24}}>
-              {pro?"The only platform where promoters earn tracked commissions on every VIP table booking.":"Book VIP tables at top venues in Miami & NYC. Real pricing. Instant confirmation. No DMs."}
-            </p>
-            <div style={{display:"flex",flexDirection:"column",gap:16,marginBottom:28}}>
-              {(pro?[
-                {n:"15%",t:"Commission",d:"On every booking through your link"},
-                {n:"60s",t:"Bookings",d:"Guests book and pay instantly"},
-                {n:"24/7",t:"Dashboard",d:"Track clicks, conversions, earnings"},
-              ]:[
-                {n:"29",t:"Venues",d:"Nightclubs, rooftops, pool parties"},
-                {n:"60s",t:"Booking",d:"Pick a table, pay, get QR code"},
-                {n:"$0",t:"To Browse",d:"Free to explore and compare"},
-              ]).map(s=>(
-                <div key={s.n} style={{display:"flex",alignItems:"flex-start",gap:14}}>
-                  <div style={{fontFamily:"var(--fd)",fontSize:28,fontWeight:700,fontStyle:"italic",color:pro?"var(--gold)":"var(--ink)",lineHeight:1,minWidth:50}}>{s.n}</div>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:700,color:pro?"white":"var(--ink)",fontFamily:"var(--fb)"}}>{s.t}</div>
-                    <div style={{fontSize:11,color:pro?"rgba(255,255,255,.35)":"var(--sub)",fontFamily:"var(--fb)"}}>{s.d}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <a href="/" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:11,color:pro?"var(--gold)":"var(--ink)",textDecoration:"none",fontFamily:"var(--fb)",fontWeight:600}}>
-              lumarsv.com
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            </a>
-          </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",width:"100%",padding:"0 28px",position:"relative",zIndex:1}}>
 
           {/* iPhone */}
           <div style={{flexShrink:0,animation:"popIn .6s cubic-bezier(.16,1,.3,1) .1s both"}}>
