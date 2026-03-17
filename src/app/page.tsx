@@ -164,7 +164,7 @@ export default function Home() {
             </div>
             {count>0&&<div className="fade d5" style={{marginTop:20,fontSize:12,color:"rgba(255,255,255,.25)"}}>{count} people on the waitlist</div>}
           </div>
-          <div className="fade d4 mockup-wrap" style={{flexShrink:0,position:"relative"}}>
+          <div className="fade d4 mockup-wrap" style={{flexShrink:0,position:"relative",display:"none"}}>
             <div style={{width:280,height:560,background:"#f5f4f0",borderRadius:36,boxShadow:"0 0 0 8px #1c1c1e,0 0 0 9px rgba(255,255,255,.06),0 40px 120px rgba(0,0,0,.6)",overflow:"hidden",position:"relative",animation:"float 6s ease infinite"}}>
               <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",width:90,height:26,background:"#000",borderRadius:16,zIndex:10}}/>
               <iframe src="/app" style={{width:"100%",height:"100%",border:"none",display:"block",pointerEvents:"none"}} title="Luma App Preview" loading="lazy"/>
