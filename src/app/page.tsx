@@ -164,11 +164,23 @@ export default function Home() {
             </div>
             {count>0&&<div className="fade d5" style={{marginTop:20,fontSize:12,color:"rgba(255,255,255,.25)"}}>{count} people on the waitlist</div>}
           </div>
-          <div className="fade d4 mockup-wrap" style={{flexShrink:0,position:"relative",display:"none"}}>
-            <div style={{width:280,height:560,background:"#f5f4f0",borderRadius:36,boxShadow:"0 0 0 8px #1c1c1e,0 0 0 9px rgba(255,255,255,.06),0 40px 120px rgba(0,0,0,.6)",overflow:"hidden",position:"relative",animation:"float 6s ease infinite"}}>
-              <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",width:90,height:26,background:"#000",borderRadius:16,zIndex:10}}/>
-              <iframe src="/app" style={{width:"100%",height:"100%",border:"none",display:"block",pointerEvents:"none"}} title="Luma App Preview" loading="lazy"/>
+          <div className="fade d4 mockup-wrap" style={{flexShrink:0,position:"relative",width:420,height:480}}>
+            {/* Main hero image */}
+            <div style={{width:380,height:440,borderRadius:24,overflow:"hidden",position:"relative",boxShadow:"0 40px 120px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06)"}}>
+              <img src="https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=800&q=80" alt="VIP nightlife" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+              <div style={{position:"absolute",inset:0,background:"linear-gradient(to top, rgba(0,0,0,.7) 0%, transparent 50%, rgba(0,0,0,.3) 100%)"}}/>
+              {/* Overlay content */}
+              <div style={{position:"absolute",bottom:24,left:24,right:24}}>
+                <div style={{display:"flex",gap:8,marginBottom:12}}>
+                  <span style={{fontSize:10,background:"rgba(201,168,76,.2)",color:gold,padding:"4px 10px",borderRadius:8,fontWeight:700,border:"1px solid rgba(201,168,76,.2)"}}>Miami</span>
+                  <span style={{fontSize:10,background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.7)",padding:"4px 10px",borderRadius:8,fontWeight:600,border:"1px solid rgba(255,255,255,.06)"}}>New York</span>
+                </div>
+                <div style={{fontSize:18,fontWeight:700,color:"white",fontFamily:"'Cormorant Garamond',serif",marginBottom:4}}>29 venues. Real prices.</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,.5)"}}>Nightclubs · Rooftops · Pool Parties · Lounges</div>
+              </div>
             </div>
+            {/* Floating gold accent */}
+            <div style={{position:"absolute",top:-10,right:-10,width:80,height:80,borderRadius:"50%",background:"radial-gradient(circle, rgba(201,168,76,.15), transparent 70%)",pointerEvents:"none"}}/>
           </div>
         </div>
       </section>
