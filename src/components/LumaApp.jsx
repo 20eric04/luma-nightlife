@@ -3482,27 +3482,15 @@ function AuthGate({onAuth}) {
   };
 
   if (view === "landing") return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",width:"100%",boxSizing:"border-box",overflow:"hidden",position:"relative",background:"var(--bg)"}}>
-      {/* Top hero — dark with venue preview */}
-      <div style={{position:"relative",height:"42%",minHeight:180,background:"linear-gradient(135deg, #0a0a0a 0%, #1a0f05 50%, #0a0a0a 100%)",overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",padding:"20px 24px"}}>
-        {/* Ambient glow */}
-        <div style={{position:"absolute",top:"-30%",right:"-20%",width:"70%",height:"70%",borderRadius:"50%",background:"radial-gradient(circle, rgba(201,168,76,.1), transparent 70%)",pointerEvents:"none"}}/>
-        {/* Floating venue cards preview */}
-        <div style={{display:"flex",gap:8,marginBottom:16,opacity:0.7}}>
-          {["Story","LIV","E11EVEN"].map((v,i) => (
-            <div key={v} style={{background:"rgba(255,255,255,.08)",backdropFilter:"blur(8px)",borderRadius:10,padding:"10px 14px",border:"1px solid rgba(255,255,255,.06)"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"white",fontFamily:"var(--fd)",fontStyle:"italic"}}>{v}</div>
-              <div style={{fontSize:7,color:"rgba(255,255,255,.4)",fontFamily:"var(--fb)",marginTop:2}}>{["South Beach","Miami Beach","Downtown"][i]}</div>
-            </div>
-          ))}
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 20px",background:"var(--bg)",width:"100%",boxSizing:"border-box",overflow:"hidden",position:"relative"}}>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:"100%"}}>
+        <div style={{width:48,height:48,background:"#c9a84c",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:16,boxShadow:"0 2px 12px rgba(201,168,76,.25)"}}>
+          <span style={{fontFamily:"var(--fd)",fontSize:24,fontWeight:700,fontStyle:"italic",color:"#0a0a0a"}}>L</span>
         </div>
-        <div style={{fontSize:8,color:"rgba(255,255,255,.3)",fontFamily:"var(--fb)",letterSpacing:2,textTransform:"uppercase"}}>29 venues &middot; 2 cities &middot; Live now</div>
-      </div>
-      {/* Bottom form — white */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px"}}>
-        <div style={{fontFamily:"var(--fd)",fontSize:36,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:4,color:"var(--ink)"}}>Luma</div>
-        <div style={{fontSize:9,color:"#c9a84c",fontFamily:"var(--fb)",letterSpacing:3,fontWeight:600,marginBottom:4,textTransform:"uppercase"}}>Miami &middot; New York</div>
-        <div style={{fontSize:10,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:24,textAlign:"center"}}>Book VIP tables in 60 seconds</div>
+        <div style={{fontFamily:"var(--fd)",fontSize:42,fontWeight:700,fontStyle:"italic",letterSpacing:"-.02em",marginBottom:8,color:"var(--ink)"}}>Luma</div>
+        <div style={{fontSize:9,color:"#c9a84c",fontFamily:"var(--fb)",letterSpacing:3,fontWeight:600,marginBottom:6,textTransform:"uppercase"}}>Miami &middot; New York</div>
+        <div style={{fontSize:11,color:"var(--sub)",fontFamily:"var(--fb)",marginBottom:4,textAlign:"center"}}>Your night starts here</div>
+        <div style={{fontSize:9,color:"var(--dim)",fontFamily:"var(--fb)",marginBottom:32,textAlign:"center",opacity:0.5}}>Book VIP tables at top venues</div>
         <div style={{width:"100%",maxWidth:240,display:"flex",flexDirection:"column",gap:10}}>
           <button onClick={()=>setView("signin")} className="press" style={{padding:"13px",background:"var(--ink)",color:"white",border:"none",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Sign In</button>
           <button onClick={()=>setView("signup")} className="press" style={{padding:"13px",background:"var(--white)",color:"var(--ink)",border:"1.5px solid var(--line2)",borderRadius:13,fontSize:13,fontFamily:"var(--fb)",fontWeight:600,cursor:"pointer"}}>Create Account</button>
