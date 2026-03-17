@@ -4470,35 +4470,41 @@ export default function App(){
           <div style={{flex:1,minWidth:0,animation:"fadeUp .5s cubic-bezier(.16,1,.3,1) both"}}>
             <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:13}}>
               <div style={{width:16,height:1,background:pro?"var(--gold)":"var(--ink)"}}/>
-              <span style={{fontSize:10,fontWeight:600,letterSpacing:".14em",color:pro?"var(--gold)":"var(--ink2)",textTransform:"uppercase",fontFamily:"var(--fb)"}}>{pro?"For Promoters":"Nightlife App"}</span>
+              <span style={{fontSize:10,fontWeight:600,letterSpacing:".14em",color:pro?"var(--gold)":"var(--ink2)",textTransform:"uppercase",fontFamily:"var(--fb)"}}>{pro?"Promoter Mode":"Nightlife App"}</span>
             </div>
-            <div style={{fontFamily:"var(--fd)",fontWeight:700,fontStyle:"italic",fontSize:54,lineHeight:.9,letterSpacing:"-.03em",marginBottom:12,color:pro?"white":"var(--ink)"}}>luma</div>
-            <p style={{fontFamily:"var(--fb)",fontSize:14,color:pro?"rgba(255,255,255,.5)":"var(--sub)",lineHeight:1.6,marginBottom:24}}>
-              {pro?"The only platform where promoters earn tracked commissions on every VIP table booking.":"Book VIP tables at top venues in Miami & NYC. Real pricing. Instant confirmation. No DMs."}
+            <div style={{fontFamily:"var(--fd)",fontWeight:400,fontStyle:"italic",fontSize:54,lineHeight:.9,letterSpacing:"-.03em",marginBottom:9,color:pro?"white":"var(--ink)"}}>luma</div>
+            <p style={{fontFamily:"var(--fd)",fontSize:15,color:pro?"rgba(255,255,255,.45)":"var(--ink2)",lineHeight:1.5,marginBottom:6,fontWeight:500}}>
+              {pro?"Build your guestlist.\nTrack every booking.":"Your Personal Concierge for\nPremium Access & Experiences."}
             </p>
-            <div style={{display:"flex",flexDirection:"column",gap:16,marginBottom:28}}>
-              {(pro?[
-                {n:"15%",t:"Commission",d:"On every booking through your link"},
-                {n:"60s",t:"Bookings",d:"Guests book and pay instantly"},
-                {n:"24/7",t:"Dashboard",d:"Track clicks, conversions, earnings"},
-              ]:[
-                {n:"29",t:"Venues",d:"Nightclubs, rooftops, pool parties"},
-                {n:"60s",t:"Booking",d:"Pick a table, pay, get QR code"},
-                {n:"$0",t:"To Browse",d:"Free to explore and compare"},
-              ]).map(s=>(
-                <div key={s.n} style={{display:"flex",alignItems:"flex-start",gap:14}}>
-                  <div style={{fontFamily:"var(--fd)",fontSize:28,fontWeight:700,fontStyle:"italic",color:pro?"var(--gold)":"var(--ink)",lineHeight:1,minWidth:50}}>{s.n}</div>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:700,color:pro?"white":"var(--ink)",fontFamily:"var(--fb)"}}>{s.t}</div>
-                    <div style={{fontSize:11,color:pro?"rgba(255,255,255,.35)":"var(--sub)",fontFamily:"var(--fb)"}}>{s.d}</div>
-                  </div>
-                </div>
+            <div style={{display:"flex",gap:8,marginBottom:20}}>
+              {(pro?["Promote.","Earn.","Grow."]:["Book.","Access.","Flex."]).map((w,i)=>(
+                <span key={w} style={{fontFamily:"var(--fd)",fontWeight:700,fontSize:14,color:pro?["var(--gold)","rgba(255,255,255,.45)","rgba(255,255,255,.2)"][i]:["var(--ink)","var(--ink2)","var(--sub)"][i]}}>{w}</span>
               ))}
             </div>
-            <a href="/" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:11,color:pro?"var(--gold)":"var(--ink)",textDecoration:"none",fontFamily:"var(--fb)",fontWeight:600}}>
-              lumarsv.com
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            </a>
+
+            {/* Role switcher */}
+            <div style={{background:pro?"rgba(255,255,255,.04)":"rgba(0,0,0,.04)",border:`1px solid ${pro?"rgba(255,255,255,.07)":"rgba(0,0,0,.07)"}`,borderRadius:14,padding:"11px 13px",marginBottom:20}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:".1em",color:pro?"rgba(255,255,255,.25)":"var(--dim)",textTransform:"uppercase",fontFamily:"var(--fb)",marginBottom:8}}>Switch Role</div>
+              <div style={{display:"flex",gap:7}}>
+                <button onClick={()=>switchMode("guest")} className="press" style={{flex:1,padding:"8px",borderRadius:11,border:`1.5px solid ${!pro?"var(--ink)":"rgba(255,255,255,.08)"}`,fontFamily:"var(--fb)",fontWeight:700,fontSize:12,cursor:"pointer",background:!pro?"var(--ink)":"transparent",color:!pro?"white":pro?"rgba(255,255,255,.3)":"var(--sub)",transition:"all .2s"}}>🎟 Guest</button>
+                <button onClick={()=>switchMode("promoter")} className="press" style={{flex:1,padding:"8px",borderRadius:11,border:`1.5px solid ${pro?"var(--gold)":"rgba(0,0,0,.08)"}`,fontFamily:"var(--fb)",fontWeight:700,fontSize:12,cursor:"pointer",background:pro?"var(--gold)":"transparent",color:pro?"white":"var(--sub)",transition:"all .2s"}}>⚡ Promoter</button>
+              </div>
+            </div>
+
+            {/* Flow */}
+            <div style={{background:pro?"rgba(255,255,255,.03)":"rgba(0,0,0,.03)",border:`1px solid ${pro?"rgba(255,255,255,.06)":"rgba(0,0,0,.07)"}`,borderRadius:13,padding:"11px 15px"}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:".1em",color:pro?"rgba(255,255,255,.22)":"var(--dim)",textTransform:"uppercase",marginBottom:9,fontFamily:"var(--fb)"}}>Current Flow</div>
+              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                {flow.map((f,i)=>{const on=label===f;return(
+                  <div key={f} style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:9,color:on?(pro?"var(--gold)":"var(--ink)"):pro?"rgba(255,255,255,.18)":"var(--dim)",width:8,fontFamily:"var(--fb)",fontWeight:600}}>{i+1}</span>
+                    <div style={{width:4,height:4,borderRadius:"50%",background:on?(pro?"var(--gold)":"var(--ink)"):pro?"rgba(255,255,255,.13)":"var(--dim)",flexShrink:0,transition:"all .3s"}}/>
+                    <span style={{fontSize:11,color:on?(pro?"white":"var(--ink)"):(pro?"rgba(255,255,255,.28)":"var(--sub)"),fontWeight:on?600:400,fontFamily:"var(--fb)",flex:1,transition:"all .2s"}}>{f}</span>
+                    {on&&<span style={{fontSize:8,fontWeight:700,color:pro?"var(--gold)":"var(--ink)",fontFamily:"var(--fb)"}}>● NOW</span>}
+                  </div>
+                );})}
+              </div>
+            </div>
           </div>
           )}
 
